@@ -65,8 +65,12 @@
               "cli/info",
               "cli/tree",
               "cli/find",
+              "cli/node",
+              "cli/pages",
+              "cli/variables",
               "cli/export",
-              "cli/analyze"
+              "cli/analyze",
+              "cli/eval"
             ]
           }
         ]

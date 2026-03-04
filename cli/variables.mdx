@@ -1,0 +1,210 @@
+---
+title: variables
+description: List design variables and collections
+---
+
+The `variables` command lists all design variables and variable collections in a `.fig` file.
+
+## Usage
+
+```bash
+bunx @open-pencil/cli variables <file>
+```
+
+## Arguments
+
+<ParamField path="file" type="string" required>
+  Path to the `.fig` file
+</ParamField>
+
+## Options
+
+<ParamField path="--collection" type="string">
+  Filter by collection name (case-insensitive substring match)
+</ParamField>
+
+<ParamField path="--type" type="string">
+  Filter by variable type: `COLOR`, `FLOAT`, `STRING`, or `BOOLEAN`
+</ParamField>
+
+<ParamField path="--json" type="boolean">
+  Output as JSON
+</ParamField>
+
+## Examples
+
+### List all variables
+
+```bash
+bunx @open-pencil/cli variables design.fig
+```
+
+Output:
+```
+Colors (Light, Dark)
+
+primary
+Value: #3B82F6
+Type: color
+
+secondary
+Value: #8B5CF6
+Type: color
+
+Spacing (Default)
+
+base
+Value: 8
+Type: float
+
+medium
+Value: → Spacing/base
+Type: float
+
+Variables: 4
+Collections: 2
+```
+
+### Filter by collection
+
+```bash
+bunx @open-pencil/cli variables design.fig --collection Colors
+```
+
+Shows only variables from collections containing "Colors" in the name.
+
+### Filter by type
+
+```bash
+bunx @open-pencil/cli variables design.fig --type COLOR
+```
+
+Shows only color variables.
+
+### Get variables as JSON
+
+```bash
+bunx @open-pencil/cli variables design.fig --json
+```
+
+Output:
+```json
+{
+  "collections": [
+    {
+      "id": "VariableCollectionId:1:100",
+      "name": "Colors",
+      "modes": [
+        { "modeId": "1:0", "name": "Light" },
+        { "modeId": "1:1", "name": "Dark" }
+      ]
+    },
+    {
+      "id": "VariableCollectionId:1:200",
+      "name": "Spacing",
+      "modes": [
+        { "modeId": "2:0", "name": "Default" }
+      ]
+    }
+  ],
+  "variables": [
+    {
+      "id": "VariableID:1:101",
+      "name": "primary",
+      "type": "COLOR",
+      "collectionId": "VariableCollectionId:1:100",
+      "valuesByMode": {
+        "1:0": { "r": 0.231, "g": 0.510, "b": 0.965, "a": 1 },
+        "1:1": { "r": 0.145, "g": 0.420, "b": 0.875, "a": 1 }
+      }
+    }
+  ]
+}
+```
+
+## Variable types
+
+OpenPencil supports four variable types:
+
+- **COLOR** - RGBA color values
+- **FLOAT** - Numeric values (spacing, sizing, opacity, etc.)
+- **STRING** - Text values
+- **BOOLEAN** - True/false values
+
+## Variable collections
+
+Collections group related variables and support multiple modes:
+
+```
+Colors (Light, Dark)
+```
+
+This shows a "Colors" collection with two modes: "Light" and "Dark".
+
+## Value display
+
+### Color values
+
+Colors are displayed as hex codes:
+```
+primary
+Value: #3B82F6
+Type: color
+```
+
+### Numeric values
+
+Floats are displayed as numbers:
+```
+base
+Value: 8
+Type: float
+```
+
+### String values
+
+Strings are displayed as-is:
+```
+fontFamily
+Value: Inter
+Type: string
+```
+
+### Boolean values
+
+Booleans are displayed as `true` or `false`:
+```
+enabled
+Value: true
+Type: boolean
+```
+
+### Variable aliases
+
+When a variable references another variable (alias), it's displayed with an arrow:
+```
+medium
+Value: → Spacing/base
+Type: float
+```
+
+This means `medium` is aliased to the `base` variable in the `Spacing` collection.
+
+## Modes
+
+Variables can have different values for different modes. The command shows the value for the active mode of each collection.
+
+In the example above, the "Colors" collection has "Light" and "Dark" modes, and the displayed value is from the active mode (typically the first mode).
+
+## Use cases
+
+- **Design tokens audit**: Review all design tokens in a file
+- **Documentation**: Generate variable reference documentation
+- **Migration**: Export variables for use in code or other tools
+- **Debugging**: Check variable values and aliases
+- **Filtering**: Find all color variables or variables from a specific collection
+
+## See also
+
+- [Components](/features/components) - Using variables with components
+- [AI chat](/features/ai-chat) - Create variables with AI tools

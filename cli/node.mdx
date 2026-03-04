@@ -1,0 +1,141 @@
+---
+title: node
+description: Show detailed node properties by ID
+---
+
+The `node` command displays detailed properties of a specific node by its ID.
+
+## Usage
+
+```bash
+bunx @open-pencil/cli node <file> --id <node-id>
+```
+
+## Arguments
+
+<ParamField path="file" type="string" required>
+  Path to the `.fig` file
+</ParamField>
+
+## Options
+
+<ParamField path="--id" type="string" required>
+  Node ID to inspect
+</ParamField>
+
+<ParamField path="--json" type="boolean">
+  Output as JSON
+</ParamField>
+
+## Examples
+
+### Inspect a node
+
+```bash
+bunx @open-pencil/cli node design.fig --id 1:234
+```
+
+Output:
+```
+[FRAME] "Button"
+ID: 1:234
+Position: x=100, y=200
+Size: 120 × 44
+Fills: #3B82F6
+Corner radius: 8
+Children: 2
+```
+
+### Get node as JSON
+
+```bash
+bunx @open-pencil/cli node design.fig --id 1:234 --json
+```
+
+Output:
+```json
+{
+  "id": "1:234",
+  "name": "Button",
+  "type": "FRAME",
+  "x": 100,
+  "y": 200,
+  "width": 120,
+  "height": 44,
+  "fills": [
+    {
+      "type": "SOLID",
+      "color": { "r": 0.231, "g": 0.510, "b": 0.965, "a": 1 }
+    }
+  ],
+  "cornerRadius": 8,
+  "parent": {
+    "id": "1:100",
+    "name": "Components",
+    "type": "FRAME"
+  },
+  "children": 2
+}
+```
+
+## Output format
+
+The command displays:
+
+- **Header**: Node type and name
+- **ID**: Node identifier
+- **Position**: x and y coordinates (if applicable)
+- **Size**: width × height
+- **Styling**: fills, strokes, effects, corner radius, etc.
+- **Parent**: Parent node reference
+- **Children**: Child count and first 10 children listed
+- **Variables**: Bound variable references
+
+## Finding node IDs
+
+Use the [`find`](/cli/find) command to search for nodes and get their IDs:
+
+```bash
+bunx @open-pencil/cli find design.fig --name "Button"
+```
+
+Or use the [`tree`](/cli/tree) command to see the full node hierarchy with IDs:
+
+```bash
+bunx @open-pencil/cli tree design.fig
+```
+
+## Child nodes
+
+When a node has children, the first 10 are listed:
+
+```
+Children (2):
+  [TEXT] "Label" (1:235)
+  [FRAME] "Icon" (1:236)
+```
+
+If more than 10 children exist, the remaining count is shown:
+
+```
+Children (25):
+  [FRAME] "Item 1" (1:240)
+  ...
+  [FRAME] "Item 10" (1:249)
+  … and 15 more
+```
+
+## Variable bindings
+
+If the node has bound variables, they're displayed with the field name:
+
+```
+var:fills: Colors/Primary
+var:cornerRadius: Radii/Medium
+```
+
+## See also
+
+- [find](/cli/find) - Search for nodes by name or type
+- [tree](/cli/tree) - View the full node hierarchy
+- [info](/cli/info) - Document-level information

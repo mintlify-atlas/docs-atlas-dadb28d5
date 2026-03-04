@@ -1,0 +1,120 @@
+---
+title: pages
+description: List pages in a .fig file
+---
+
+The `pages` command lists all pages in a `.fig` file with node counts.
+
+## Usage
+
+```bash
+bunx @open-pencil/cli pages <file>
+```
+
+## Arguments
+
+<ParamField path="file" type="string" required>
+  Path to the `.fig` file
+</ParamField>
+
+## Options
+
+<ParamField path="--json" type="boolean">
+  Output as JSON
+</ParamField>
+
+## Examples
+
+### List pages
+
+```bash
+bunx @open-pencil/cli pages design.fig
+```
+
+Output:
+```
+3 pages
+
+[PAGE] "Home" (0:1)
+Nodes: 156
+
+[PAGE] "Components" (0:2)
+Nodes: 42
+
+[PAGE] "Documentation" (0:3)
+Nodes: 89
+```
+
+### Get pages as JSON
+
+```bash
+bunx @open-pencil/cli pages design.fig --json
+```
+
+Output:
+```json
+[
+  {
+    "id": "0:1",
+    "name": "Home",
+    "nodes": 156
+  },
+  {
+    "id": "0:2",
+    "name": "Components",
+    "nodes": 42
+  },
+  {
+    "id": "0:3",
+    "name": "Documentation",
+    "nodes": 89
+  }
+]
+```
+
+## Output format
+
+For each page, the command displays:
+
+- **Page type and name**: `[PAGE] "Page Name"`
+- **Page ID**: `(0:1)`
+- **Node count**: Total number of nodes in the page (including nested children)
+
+## Node counting
+
+The node count includes:
+
+- All direct children of the page
+- All nested descendants (frames, groups, shapes, text, etc.)
+- Does not include the page node itself
+
+For example, a page with 2 frames, each containing 5 shapes, would show:
+```
+Nodes: 12
+```
+(2 frames + 10 shapes)
+
+## Use cases
+
+- **Project overview**: Get a quick summary of page structure
+- **Size analysis**: Identify pages with many nodes that might need optimization
+- **Navigation**: Find page IDs for use with other commands
+- **Automation**: Use `--json` output in scripts to process pages programmatically
+
+## Combining with other commands
+
+Use page IDs with the [`tree`](/cli/tree) command to view a specific page:
+
+```bash
+# First, get page IDs
+bunx @open-pencil/cli pages design.fig
+
+# Then view a specific page tree (when --page flag is available)
+bunx @open-pencil/cli tree design.fig --page "0:2"
+```
+
+## See also
+
+- [tree](/cli/tree) - View node hierarchy
+- [info](/cli/info) - Document-level information
+- [find](/cli/find) - Search for specific nodes

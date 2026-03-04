@@ -1,0 +1,138 @@
+---
+title: eval
+description: Execute JavaScript with Figma plugin API
+---
+
+The `eval` command executes JavaScript code with access to the Figma plugin API (`FigmaAPI`). This provides programmatic access to all tools and operations.
+
+## Usage
+
+```bash
+bunx @open-pencil/cli eval <file> --code <javascript>
+```
+
+## Arguments
+
+<ParamField path="file" type="string" required>
+  Path to the `.fig` file
+</ParamField>
+
+## Options
+
+<ParamField path="--code" type="string" alias="-c">
+  JavaScript code to execute
+</ParamField>
+
+<ParamField path="--stdin" type="boolean">
+  Read code from stdin instead of `--code` flag
+</ParamField>
+
+<ParamField path="--write" type="boolean" alias="-w">
+  Write changes back to the input file
+</ParamField>
+
+<ParamField path="--output" type="string" alias="-o">
+  Write changes to a different file
+</ParamField>
+
+<ParamField path="--json" type="boolean">
+  Output result as JSON
+</ParamField>
+
+<ParamField path="--quiet" type="boolean" alias="-q">
+  Suppress output
+</ParamField>
+
+## Examples
+
+### Create a rectangle
+
+```bash
+bunx @open-pencil/cli eval design.fig --code '
+  const rect = figma.createRectangle()
+  rect.x = 100
+  rect.y = 100
+  rect.resize(200, 100)
+  rect.fills = [{ type: "SOLID", color: { r: 1, g: 0, b: 0, a: 1 } }]
+' --write
+```
+
+### Query nodes
+
+```bash
+bunx @open-pencil/cli eval design.fig --code '
+  const buttons = figma.currentPage.findAll(n => n.name.includes("Button"))
+  return buttons.map(b => ({ id: b.id, name: b.name }))
+' --json
+```
+
+### Read code from stdin
+
+```bash
+cat script.js | bunx @open-pencil/cli eval design.fig --stdin --write
+```
+
+### Modify multiple nodes
+
+```bash
+bunx @open-pencil/cli eval design.fig --code '
+  const texts = figma.currentPage.findAll(n => n.type === "TEXT")
+  for (const text of texts) {
+    text.fontSize = 16
+  }
+' --output modified.fig
+```
+
+## FigmaAPI access
+
+The `figma` object provides access to the Figma plugin API:
+
+- `figma.currentPage` - Current page
+- `figma.root` - Document root
+- `figma.createRectangle()` - Create shapes
+- `figma.createText()` - Create text
+- `figma.createFrame()` - Create frames
+- `figma.createComponent()` - Create components
+- `node.findAll(predicate)` - Search nodes
+- `node.remove()` - Delete nodes
+- All other FigmaAPI methods
+
+See [FigmaAPI reference](/api/figma-api) for the complete API.
+
+## Return values
+
+The last expression or `return` statement is output:
+
+```bash
+# Returns selection count
+bunx @open-pencil/cli eval design.fig --code '
+  return figma.currentPage.selection.length
+'
+```
+
+Objects with a `toJSON()` method are automatically serialized.
+
+## Writing changes
+
+By default, `eval` does not modify the input file. Use `--write` or `--output` to persist changes:
+
+- `--write` - Overwrite the input file
+- `--output path.fig` - Write to a different file
+
+<Warning>
+`--write` overwrites the original file. Back up important files before using this flag.
+</Warning>
+
+## Use cases
+
+- Batch updates to design tokens
+- Automated refactoring
+- Custom linting rules
+- Data-driven design generation
+- Integration with CI/CD pipelines
+
+## See also
+
+- [FigmaAPI reference](/api/figma-api) - Complete API documentation
+- [Tools reference](/api/tools/read-operations) - Available tools
+- [MCP server](/mcp/overview) - Alternative for AI coding tools

@@ -1,0 +1,104 @@
+---
+title: info
+description: Show document statistics, node counts, and fonts
+---
+
+Display high-level statistics about a .fig file: page count, total nodes, node type distribution, and font usage.
+
+## Usage
+
+```sh
+bunx @open-pencil/cli info <file> [options]
+```
+
+## Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `file` | Path to .fig file (required) |
+
+## Options
+
+| Option | Alias | Description |
+|--------|-------|-------------|
+| `--json` | | Output as JSON |
+
+## Examples
+
+### Basic info
+
+```sh
+bunx @open-pencil/cli info design.fig
+```
+
+Output:
+
+```
+  3 pages, 1,247 nodes
+
+  Homepage        ████████████████████████████████████████  512 nodes
+  Components      ████████████████████                      287 nodes
+  Drafts          ████████████                              448 nodes
+
+  FRAME: 142  TEXT: 98  RECTANGLE: 76  INSTANCE: 45  COMPONENT: 12
+
+  Fonts: Inter, SF Pro Display, Roboto Mono
+```
+
+### JSON output
+
+```sh
+bunx @open-pencil/cli info design.fig --json
+```
+
+Output:
+
+```json
+{
+  "pages": 3,
+  "totalNodes": 1247,
+  "types": {
+    "FRAME": 142,
+    "TEXT": 98,
+    "RECTANGLE": 76,
+    "INSTANCE": 45,
+    "COMPONENT": 12
+  },
+  "fonts": ["Inter", "Roboto Mono", "SF Pro Display"],
+  "pageCounts": {
+    "Homepage": 512,
+    "Components": 287,
+    "Drafts": 448
+  }
+}
+```
+
+## What It Shows
+
+- **Page count** — number of canvas (page) nodes
+- **Total nodes** — all nodes across all pages (recursive count)
+- **Node type histogram** — breakdown by type (FRAME, TEXT, etc.) with counts per page
+- **Type summary** — aggregate counts of each node type
+- **Fonts** — all font families used in TEXT nodes
+
+## Node Types
+
+Common node types:
+
+- `FRAME` — frame (container with layout)
+- `TEXT` — text layer
+- `RECTANGLE` — rectangle shape
+- `ELLIPSE` — circle/ellipse
+- `VECTOR` — vector path
+- `INSTANCE` — component instance
+- `COMPONENT` — component definition
+- `GROUP` — group (no layout)
+- `SECTION` — section (organizational container)
+- `BOOLEAN_OPERATION` — boolean union/subtract/intersect
+
+## Use Cases
+
+- Quick audit of file size and complexity
+- Font inventory for design systems
+- Identify overuse of specific node types
+- Check page distribution before cleanup

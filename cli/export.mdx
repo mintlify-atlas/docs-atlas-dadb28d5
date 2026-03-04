@@ -1,0 +1,157 @@
+---
+title: export
+description: Render .fig files to PNG, JPG, or WEBP
+---
+
+Export a .fig file to an image. Supports PNG, JPG, and WEBP formats with configurable scale and quality.
+
+## Usage
+
+```sh
+bunx @open-pencil/cli export <file> [options]
+```
+
+## Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `file` | Path to .fig file (required) |
+
+## Options
+
+| Option | Alias | Description |
+|--------|-------|-------------|
+| `--output` | `-o` | Output file path (default: `<name>.<format>`) |
+| `--format` | `-f` | Export format: png, jpg, webp (default: png) |
+| `--scale` | `-s` | Export scale (default: 1) |
+| `--quality` | `-q` | Quality 0-100 for JPG/WEBP (default: 90) |
+| `--page` | | Page name (default: first page) |
+| `--node` | | Node ID to export (default: all top-level nodes) |
+| `--thumbnail` | | Export page thumbnail instead of full render |
+| `--width` | | Thumbnail width (default: 1920) |
+| `--height` | | Thumbnail height (default: 1080) |
+
+## Examples
+
+### Basic export (PNG)
+
+```sh
+bunx @open-pencil/cli export design.fig
+```
+
+Outputs `design.png` at 1x scale.
+
+### JPG at 2x scale
+
+```sh
+bunx @open-pencil/cli export design.fig -f jpg -s 2
+```
+
+Outputs `design.jpg` at 2x scale with 90% quality.
+
+### WEBP with custom quality
+
+```sh
+bunx @open-pencil/cli export design.fig -f webp -q 80
+```
+
+### Custom output path
+
+```sh
+bunx @open-pencil/cli export design.fig -o screenshots/homepage.png
+```
+
+### Export specific page
+
+```sh
+bunx @open-pencil/cli export design.fig --page Components
+```
+
+### Export single node
+
+```sh
+bunx @open-pencil/cli export design.fig --node "1:23" -o button.png
+```
+
+Exports only the node with ID `1:23`.
+
+### Page thumbnail
+
+```sh
+bunx @open-pencil/cli export design.fig --thumbnail --width 1280 --height 720
+```
+
+Generates a thumbnail of the entire page at the specified dimensions.
+
+## Formats
+
+| Format | Extension | Quality | Use Case |
+|--------|-----------|---------|----------|
+| PNG | `.png` | Lossless | Screenshots, design handoff, transparency |
+| JPG | `.jpg` | Lossy | Previews, thumbnails, no transparency |
+| WEBP | `.webp` | Lossy | Smaller file size, modern browsers |
+
+## Scale
+
+The `--scale` option multiplies the output dimensions:
+
+- `1` — 1x (default, same as Figma canvas)
+- `2` — 2x (Retina/HiDPI)
+- `3` — 3x (high-resolution prints)
+- `0.5` — half size (quick previews)
+
+Example:
+
+```sh
+# Node is 100x100 in Figma
+bunx @open-pencil/cli export design.fig -s 2  # outputs 200x200 PNG
+```
+
+## Quality
+
+For JPG and WEBP, `--quality` controls compression (0-100):
+
+- `90` — default (high quality, reasonable file size)
+- `100` — maximum quality (largest file size)
+- `80` — good balance for web use
+- `60` — smaller files, visible artifacts
+
+PNG ignores the `--quality` option (always lossless).
+
+## Rendering
+
+- Uses **Skia (CanvasKit WASM)** for pixel-perfect rendering
+- **Fonts** — loads local fonts via Bun's file system access
+- **Effects** — renders shadows, blurs, blend modes
+- **Auto-layout** — computes Yoga layout before rendering
+- **Viewport culling** — off-screen nodes are still rendered (no culling during export)
+
+## Thumbnail Mode
+
+The `--thumbnail` flag renders the entire page scaled to fit the specified dimensions:
+
+```sh
+bunx @open-pencil/cli export design.fig --thumbnail --width 1920 --height 1080
+```
+
+- Fits the entire page (all top-level nodes) into the bounding box
+- Maintains aspect ratio
+- Useful for page previews, OG images, design documentation
+
+## Error Handling
+
+The command will exit with an error if:
+
+- Invalid format (not png/jpg/webp)
+- Page not found (`--page` doesn't match any page name)
+- Node not found (`--node` ID doesn't exist)
+- Empty page (no visible nodes to render)
+
+## Use Cases
+
+- Generate thumbnails for design file browsers
+- CI/CD visual regression testing
+- Automated design documentation
+- OG images for marketing pages
+- Design handoff (export artboards at 2x)
+- Print assets (export at 3x or higher)

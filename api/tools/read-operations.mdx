@@ -1,0 +1,226 @@
+---
+title: Read Operations
+description: Tools for reading and querying design nodes
+---
+
+## get_selection
+
+Get details about currently selected nodes.
+
+<ParamField path="Returns" type="object">
+  Returns an object with a `selection` array containing all selected node details.
+</ParamField>
+
+---
+
+## get_page_tree
+
+Get the node tree of the current page. Returns all nodes with hierarchy, types, positions, and sizes.
+
+<ParamField path="Returns" type="object">
+  Returns an object with `page` (name) and `children` (array of node trees).
+</ParamField>
+
+---
+
+## get_node
+
+Get detailed properties of a node by ID.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the complete node object with all properties, or an error if not found.
+</ParamField>
+
+---
+
+## find_nodes
+
+Find nodes by name pattern and/or type.
+
+<ParamField path="name" type="string">
+  Name substring to match (case-insensitive)
+</ParamField>
+
+<ParamField path="type" type="string">
+  Node type filter. Options: `FRAME`, `RECTANGLE`, `ELLIPSE`, `TEXT`, `LINE`, `STAR`, `POLYGON`, `SECTION`, `GROUP`, `COMPONENT`, `INSTANCE`, `VECTOR`
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns an object with `count` and `nodes` array containing matching node summaries.
+</ParamField>
+
+---
+
+## node_bounds
+
+Get absolute bounding box of a node.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node ID and its `absoluteBoundingBox` coordinates.
+</ParamField>
+
+---
+
+## node_children
+
+Get direct children of a node.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns an object with the node `id` and `children` array containing child node summaries (id, name, type).
+</ParamField>
+
+---
+
+## node_tree
+
+Get a node tree with types and hierarchy.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="depth" type="number">
+  Max depth (default: unlimited)
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns a recursive tree structure with id, name, type, and children.
+</ParamField>
+
+---
+
+## node_ancestors
+
+Get the ancestor chain from a node to the page root.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="depth" type="number">
+  Max depth to traverse
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns an object with the node `id` and `ancestors` array (from parent to root).
+</ParamField>
+
+---
+
+## node_bindings
+
+Get variable bindings for a node.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node `id` and its `boundVariables` object.
+</ParamField>
+
+---
+
+## list_pages
+
+List all pages in the document.
+
+<ParamField path="Returns" type="object">
+  Returns an object with `current` page name and `pages` array containing page summaries.
+</ParamField>
+
+---
+
+## list_variables
+
+List all design variables (colors, numbers, strings, booleans).
+
+<ParamField path="type" type="string">
+  Filter by variable type. Options: `COLOR`, `FLOAT`, `STRING`, `BOOLEAN`
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns an object with `count` and `variables` array.
+</ParamField>
+
+---
+
+## list_collections
+
+List all variable collections.
+
+<ParamField path="Returns" type="object">
+  Returns an object with `count` and `collections` array.
+</ParamField>
+
+---
+
+## get_variable
+
+Get a variable by ID.
+
+<ParamField path="id" type="string" required>
+  Variable ID
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the variable object, or an error if not found.
+</ParamField>
+
+---
+
+## find_variables
+
+Find variables by name pattern.
+
+<ParamField path="query" type="string" required>
+  Name substring (case-insensitive)
+</ParamField>
+
+<ParamField path="type" type="string">
+  Filter by type. Options: `COLOR`, `FLOAT`, `STRING`, `BOOLEAN`
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns an object with `count` and `variables` array.
+</ParamField>
+
+---
+
+## get_collection
+
+Get a variable collection by ID.
+
+<ParamField path="id" type="string" required>
+  Collection ID
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the collection object, or an error if not found.
+</ParamField>
+
+---
+
+## path_get
+
+Get vector path data of a node.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node `id` and its `vectorNetwork` data, or an error if the node has no vector data.
+</ParamField>

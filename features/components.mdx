@@ -1,0 +1,526 @@
+---
+title: Component System
+description: Create reusable design elements with live sync between components and instances
+---
+
+OpenPencil's component system lets you create reusable design elements that stay in sync across your document. Components are Figma-compatible and support overrides, variants, and live updates.
+
+## Components vs Instances
+
+- **Component**: The source of truth (purple in UI)
+- **Instance**: A linked copy that inherits from the component
+
+From `AGENTS.md:146-153`:
+
+> - Purple (#9747ff) for COMPONENT, COMPONENT_SET, INSTANCE — matches Figma
+> - Instance children map to component children via `componentId` for 1:1 sync
+> - Override key format: `"childId:propName"` in instance's `overrides` record
+> - Editing a component must call `syncIfInsideComponent()` to propagate to instances
+> - `SceneGraph.copyProp<K>()` typed helper — uses `structuredClone` for arrays
+
+## Creating Components
+
+### From Selection
+
+Select a frame or group and convert it to a component:
+
+```typescript
+const frame = figma.createFrame()
+frame.name = 'Button'
+// ... add children, styling, etc.
+
+const component = figma.createComponentFromNode(frame)
+```
+
+From `packages/core/src/tools/schema.ts:549-560`:
+
+```typescript
+export const createComponent = defineTool({
+  name: 'create_component',
+  description: 'Convert a frame/group into a component.',
+  params: {
+    id: { type: 'string', description: 'Node ID to convert', required: true }
+  },
+  execute: (figma, { id }) => {
+    const node = figma.getNodeById(id)
+    if (!node) return { error: `Node "${id}" not found` }
+    const comp = figma.createComponentFromNode(node)
+    return nodeSummary(comp)
+  }
+})
+```
+
+### Component Color
+
+Components are rendered with purple selection borders:
+
+```typescript
+export const COMPONENT_COLOR = { r: 0.592, g: 0.278, b: 1, a: 1 }
+```
+
+From `packages/core/src/constants.ts:9`
+
+## Creating Instances
+
+Instances are created from components and inherit all properties:
+
+```typescript
+const instance = component.createInstance()
+instance.x = 100
+instance.y = 100
+```
+
+From `packages/core/src/tools/schema.ts:563-579`:
+
+```typescript
+export const createInstance = defineTool({
+  name: 'create_instance',
+  description: 'Create an instance of a component.',
+  params: {
+    component_id: { type: 'string', description: 'Component node ID', required: true },
+    x: { type: 'number', description: 'X position' },
+    y: { type: 'number', description: 'Y position' }
+  },
+  execute: (figma, args) => {
+    const comp = figma.getNodeById(args.component_id)
+    if (!comp) return { error: `Component "${args.component_id}" not found` }
+    const instance = comp.createInstance()
+    if (args.x !== undefined) instance.x = args.x
+    if (args.y !== undefined) instance.y = args.y
+    return nodeSummary(instance)
+  }
+})
+```
+
+## Instance Sync
+
+Instances automatically sync with their component. When you edit a component, all instances update immediately.
+
+### Synced Properties
+
+From `packages/core/src/scene-graph.ts:868-894`:
+
+```typescript
+private static readonly INSTANCE_SYNC_PROPS: (keyof SceneNode)[] = [
+  'width',
+  'height',
+  'fills',
+  'strokes',
+  'effects',
+  'opacity',
+  'cornerRadius',
+  'topLeftRadius',
+  'topRightRadius',
+  'bottomRightRadius',
+  'bottomLeftRadius',
+  'independentCorners',
+  'layoutMode',
+  'layoutWrap',
+  'primaryAxisAlign',
+  'counterAxisAlign',
+  'primaryAxisSizing',
+  'counterAxisSizing',
+  'itemSpacing',
+  'counterAxisSpacing',
+  'paddingTop',
+  'paddingRight',
+  'paddingBottom',
+  'paddingLeft',
+  'clipsContent'
+]
+```
+
+### Sync Implementation
+
+When a component is edited, OpenPencil calls `syncInstances()` to propagate changes:
+
+```typescript
+syncInstances(componentId: string): void {
+  const component = this.nodes.get(componentId)
+  if (!component || component.type !== 'COMPONENT') return
+
+  for (const instance of this.getInstances(componentId)) {
+    // Sync instance-level props (unless overridden)
+    for (const key of SceneGraph.INSTANCE_SYNC_PROPS) {
+      if (key in instance.overrides) continue
+      SceneGraph.copyProp(instance, component, key)
+    }
+
+    // Sync children: match by componentId
+    this.syncChildren(component.id, instance.id, instance.overrides)
+  }
+}
+```
+
+From `packages/core/src/scene-graph.ts:952-966`
+
+### Child Mapping
+
+Instance children are mapped to component children via `componentId`:
+
+```typescript
+interface SceneNode {
+  componentId: string | null  // Reference to component node
+  overrides: Record<string, unknown>  // Override values
+}
+```
+
+From `packages/core/src/scene-graph.ts:264-265`
+
+**Mapping example:**
+
+```
+Component (id: 'comp-1')
+  ├─ Text (id: 'comp-text-1')
+  └─ Frame (id: 'comp-frame-1')
+
+Instance (id: 'inst-1', componentId: 'comp-1')
+  ├─ Text (id: 'inst-text-1', componentId: 'comp-text-1')
+  └─ Frame (id: 'inst-frame-1', componentId: 'comp-frame-1')
+```
+
+## Overrides
+
+Instances can override specific properties without breaking the component link.
+
+### Override Format
+
+Overrides are stored as `"childId:propName"` keys:
+
+```typescript
+instance.overrides = {
+  'inst-text-1:text': 'Custom text',
+  'inst-frame-1:fills': [{ type: 'SOLID', color: { r: 1, g: 0, b: 0, a: 1 } }]
+}
+```
+
+### Setting Overrides
+
+```typescript
+// Override text content
+const textChild = instance.children.find(c => c.type === 'TEXT')
+if (textChild) {
+  textChild.characters = 'New text'
+  instance.overrides[`${textChild.id}:text`] = 'New text'
+}
+
+// Override fill color
+const frameChild = instance.children[0]
+frameChild.fills = [{ type: 'SOLID', color: { r: 0, g: 1, b: 0, a: 1 } }]
+instance.overrides[`${frameChild.id}:fills`] = frameChild.fills
+```
+
+### Clearing Overrides
+
+Delete the override key to restore component value:
+
+```typescript
+delete instance.overrides[`${childId}:text`]
+
+// Then re-sync
+graph.syncInstances(instance.componentId)
+```
+
+## Detaching Instances
+
+Break the component link to convert an instance to a regular frame:
+
+```typescript
+graph.detachInstance(instanceId)
+
+// Result:
+// - Type changes from INSTANCE to FRAME
+// - componentId set to null
+// - overrides cleared
+// - All properties retained
+```
+
+From `packages/core/src/scene-graph.ts:1034-1040`:
+
+```typescript
+detachInstance(instanceId: string): void {
+  const node = this.nodes.get(instanceId)
+  if (!node || node.type !== 'INSTANCE') return
+  node.type = 'FRAME'
+  node.componentId = null
+  node.overrides = {}
+}
+```
+
+## Component Sets
+
+Component sets group related variants (like button states: default, hover, pressed).
+
+```typescript
+interface SceneNode {
+  type: 'COMPONENT_SET'  // Container for variants
+}
+```
+
+**Visual styling:**
+
+```typescript
+export const COMPONENT_SET_DASH = 6
+export const COMPONENT_SET_DASH_GAP = 4
+export const COMPONENT_SET_BORDER_WIDTH = 1.5
+```
+
+From `packages/core/src/constants.ts:66-68`
+
+Component sets are rendered with dashed purple borders.
+
+## Finding Components
+
+Get all instances of a component:
+
+```typescript
+getInstances(componentId: string): SceneNode[] {
+  const instances: SceneNode[] = []
+  for (const node of this.nodes.values()) {
+    if (node.type === 'INSTANCE' && node.componentId === componentId) {
+      instances.push(node)
+    }
+  }
+  return instances
+}
+```
+
+From `packages/core/src/scene-graph.ts:1048-1056`
+
+Get the main component from an instance:
+
+```typescript
+getMainComponent(instanceId: string): SceneNode | undefined {
+  const node = this.nodes.get(instanceId)
+  if (!node?.componentId) return undefined
+  return this.nodes.get(node.componentId)
+}
+```
+
+From `packages/core/src/scene-graph.ts:1042-1046`
+
+## Creating Instances Programmatically
+
+The `createInstance()` method clones the component structure:
+
+```typescript
+createInstance(
+  componentId: string,
+  parentId: string,
+  overrides: Partial<SceneNode> = {}
+): SceneNode | null {
+  const component = this.nodes.get(componentId)
+  if (!component || component.type !== 'COMPONENT') return null
+
+  const props: Partial<SceneNode> = { name: component.name, componentId }
+  for (const key of SceneGraph.INSTANCE_SYNC_PROPS) {
+    SceneGraph.copyProp(props, component, key)
+  }
+
+  const instance = this.createNode('INSTANCE', parentId, { ...props, ...overrides })
+
+  this.cloneChildrenWithMapping(component.id, instance.id)
+
+  return instance
+}
+```
+
+From `packages/core/src/scene-graph.ts:905-923`
+
+### Child Cloning
+
+Children are cloned recursively with `componentId` references:
+
+```typescript
+private cloneChildrenWithMapping(sourceParentId: string, destParentId: string): void {
+  const sourceParent = this.nodes.get(sourceParentId)
+  if (!sourceParent) return
+
+  for (const childId of sourceParent.childIds) {
+    const src = this.nodes.get(childId)
+    if (!src) continue
+
+    const { id: _, parentId: _p, childIds: _c, ...rest } = src
+    const clone = this.createNode(src.type, destParentId, {
+      ...rest,
+      componentId: childId  // Link back to component child
+    })
+
+    if (src.childIds.length > 0) {
+      this.cloneChildrenWithMapping(childId, clone.id)
+    }
+  }
+}
+```
+
+From `packages/core/src/scene-graph.ts:932-950`
+
+## Syncing Children
+
+When a component's children change, instances must sync:
+
+```typescript
+private syncChildren(
+  compParentId: string,
+  instParentId: string,
+  overrides: Record<string, unknown>
+): void {
+  const compParent = this.nodes.get(compParentId)
+  const instParent = this.nodes.get(instParentId)
+  if (!compParent || !instParent) return
+
+  const instChildMap = new Map<string, SceneNode>()
+  for (const childId of instParent.childIds) {
+    const child = this.nodes.get(childId)
+    if (child?.componentId) instChildMap.set(child.componentId, child)
+  }
+
+  // Add new children from component that don't exist in instance
+  for (const compChildId of compParent.childIds) {
+    if (!instChildMap.has(compChildId)) {
+      const src = this.nodes.get(compChildId)
+      if (!src) continue
+      const { id: _, parentId: _p, childIds: _c, ...rest } = src
+      const clone = this.createNode(src.type, instParentId, {
+        ...rest,
+        componentId: compChildId
+      })
+      if (src.childIds.length > 0) {
+        this.cloneChildrenWithMapping(compChildId, clone.id)
+      }
+      instChildMap.set(compChildId, clone)
+    }
+  }
+
+  // Sync existing children
+  for (const compChildId of compParent.childIds) {
+    const compChild = this.nodes.get(compChildId)
+    const instChild = instChildMap.get(compChildId)
+    if (!compChild || !instChild) continue
+
+    for (const key of SceneGraph.INSTANCE_SYNC_PROPS) {
+      const overrideKey = `${instChild.id}:${key}`
+      if (overrideKey in overrides) continue
+      SceneGraph.copyProp(instChild, compChild, key)
+    }
+
+    for (const key of ['name', 'text', 'fontSize', 'fontWeight', 'fontFamily'] as const) {
+      const overrideKey = `${instChild.id}:${key}`
+      if (overrideKey in overrides) continue
+      SceneGraph.copyProp(instChild, compChild, key)
+    }
+
+    if (compChild.childIds.length > 0) {
+      this.syncChildren(compChildId, instChild.id, overrides)
+    }
+  }
+
+  // Reorder instance children to match component order
+  const compChildOrder = compParent.childIds
+  instParent.childIds.sort((a, b) => {
+    const nodeA = this.nodes.get(a)
+    const nodeB = this.nodes.get(b)
+    const idxA = nodeA?.componentId ? compChildOrder.indexOf(nodeA.componentId) : -1
+    const idxB = nodeB?.componentId ? compChildOrder.indexOf(nodeB.componentId) : -1
+    return idxA - idxB
+  })
+}
+```
+
+From `packages/core/src/scene-graph.ts:968-1032`
+
+**Key behaviors:**
+1. Add new component children to instances
+2. Sync properties (respecting overrides)
+3. Recursively sync nested children
+4. Reorder instance children to match component
+
+## Usage Example
+
+```typescript
+import { SceneGraph } from '@open-pencil/core'
+
+const graph = new SceneGraph()
+const page = graph.getPages()[0]
+
+// 1. Create a button component
+const buttonFrame = graph.createNode('FRAME', page.id, {
+  name: 'Button',
+  width: 120,
+  height: 44,
+  layoutMode: 'HORIZONTAL',
+  primaryAxisAlign: 'CENTER',
+  counterAxisAlign: 'CENTER',
+  itemSpacing: 8,
+  paddingTop: 12,
+  paddingBottom: 12,
+  paddingLeft: 24,
+  paddingRight: 24,
+  fills: [{ type: 'SOLID', color: { r: 0.2, g: 0.5, b: 1, a: 1 }, opacity: 1, visible: true }],
+  cornerRadius: 8
+})
+
+const buttonText = graph.createNode('TEXT', buttonFrame.id, {
+  text: 'Click me',
+  fontSize: 14,
+  fontWeight: 600,
+  fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1, a: 1 }, opacity: 1, visible: true }]
+})
+
+// 2. Convert to component
+buttonFrame.type = 'COMPONENT'
+
+// 3. Create instances
+const instance1 = graph.createInstance(buttonFrame.id, page.id, { x: 0, y: 0 })
+const instance2 = graph.createInstance(buttonFrame.id, page.id, { x: 0, y: 60 })
+const instance3 = graph.createInstance(buttonFrame.id, page.id, { x: 0, y: 120 })
+
+// 4. Override text in instance 2
+const instance2Text = graph.getChildren(instance2.id)[0]
+instance2Text.text = 'Submit'
+instance2.overrides[`${instance2Text.id}:text`] = 'Submit'
+
+// 5. Modify component (instances sync automatically)
+buttonFrame.fills = [{ type: 'SOLID', color: { r: 0, g: 0.7, b: 0.3, a: 1 }, opacity: 1, visible: true }]
+graph.syncInstances(buttonFrame.id)
+
+// Result:
+// - All instances now have green background
+// - Instance 2 still shows "Submit" (override preserved)
+// - Instances 1 and 3 show "Click me"
+```
+
+## Best Practices
+
+1. **Use components for repeated elements**: Buttons, cards, list items, navigation bars
+2. **Keep component structure simple**: Fewer nested levels = easier to maintain
+3. **Name components clearly**: Use descriptive names for easy identification
+4. **Test overrides**: Ensure overrides work before creating many instances
+5. **Sync after edits**: Call `syncInstances()` after modifying components
+
+<Info>
+Components are purple in the UI to match Figma's convention. This helps visually distinguish components from regular frames.
+</Info>
+
+## File Format
+
+Components are encoded in `.fig` files using the same `NodeChange` format as other nodes:
+
+```typescript
+interface NodeChange {
+  guid: string
+  type?: 'COMPONENT' | 'INSTANCE' | 'COMPONENT_SET'
+  componentId?: string       // For instances
+  overrides?: Record<string, unknown>
+  // ... other properties
+}
+```
+
+Instances reference their component via `componentId`, and overrides are stored as a flat object.
+
+## See Also
+
+- [Drawing Tools](/features/drawing-tools) - Creating component content
+- [AI Chat](/features/ai-chat) - Generate components with AI
+- [File Format](/features/file-format) - Component encoding in .fig files
+- [Collaboration](/features/collaboration) - Component sync across peers

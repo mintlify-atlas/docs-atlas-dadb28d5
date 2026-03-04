@@ -1,0 +1,96 @@
+---
+title: Layout Operations
+description: Tools for setting auto-layout, constraints, and sizing
+---
+
+## set_layout
+
+Set auto-layout (flexbox) on a frame. Direction, alignment, spacing, padding.
+
+<ParamField path="id" type="string" required>
+  Frame node ID
+</ParamField>
+
+<ParamField path="direction" type="string" required>
+  Layout direction. Options: `HORIZONTAL`, `VERTICAL`
+</ParamField>
+
+<ParamField path="spacing" type="number" default="0">
+  Gap between items (minimum: 0)
+</ParamField>
+
+<ParamField path="padding" type="number">
+  Equal padding on all sides (minimum: 0)
+</ParamField>
+
+<ParamField path="padding_horizontal" type="number">
+  Horizontal padding (minimum: 0)
+</ParamField>
+
+<ParamField path="padding_vertical" type="number">
+  Vertical padding (minimum: 0)
+</ParamField>
+
+<ParamField path="align" type="string" default="MIN">
+  Primary axis alignment. Options: `MIN`, `CENTER`, `MAX`, `SPACE_BETWEEN`
+</ParamField>
+
+<ParamField path="counter_align" type="string" default="MIN">
+  Cross axis alignment. Options: `MIN`, `CENTER`, `MAX`, `STRETCH`
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node ID, direction, and spacing.
+</ParamField>
+
+---
+
+## set_constraints
+
+Set resize constraints for a node within its parent.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="horizontal" type="string">
+  Horizontal constraint. Options: `MIN`, `CENTER`, `MAX`, `STRETCH`, `SCALE`
+</ParamField>
+
+<ParamField path="vertical" type="string">
+  Vertical constraint. Options: `MIN`, `CENTER`, `MAX`, `STRETCH`, `SCALE`
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node ID and its constraints.
+</ParamField>
+
+---
+
+## set_minmax
+
+Set min/max width and height constraints on a node.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="min_width" type="number">
+  Minimum width (minimum: 0)
+</ParamField>
+
+<ParamField path="max_width" type="number">
+  Maximum width (minimum: 0)
+</ParamField>
+
+<ParamField path="min_height" type="number">
+  Minimum height (minimum: 0)
+</ParamField>
+
+<ParamField path="max_height" type="number">
+  Maximum height (minimum: 0)
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node ID and all min/max values.
+</ParamField>

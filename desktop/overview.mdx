@@ -1,0 +1,57 @@
+---
+title: Desktop App Overview
+description: OpenPencil desktop application built with Tauri v2
+---
+
+The OpenPencil desktop app is a cross-platform native application built with Tauri v2. It provides the same Figma-compatible design editor as the web app, but with native file system access, better performance, and offline capabilities.
+
+## Architecture
+
+The desktop app uses:
+
+- **Tauri v2** — Rust-based framework for building native apps with web technologies
+- **Vue 3 + Vite** — Frontend bundled and served from `dist/` folder
+- **CanvasKit (Skia WASM)** — Hardware-accelerated rendering via WebGL
+- **Native file system** — Direct .fig file read/write without browser limitations
+
+The Rust backend (`desktop/src/`) provides:
+
+- File system operations (open, save, watch)
+- Native dialogs (file picker, save dialog)
+- Zstd compression for .fig export
+- System font enumeration via `font-kit`
+
+## Plugins
+
+The desktop app uses three Tauri plugins:
+
+- **plugin-dialog** — Native file picker and save dialogs
+- **plugin-fs** — File system access with watch capabilities
+- **plugin-opener** — Open URLs and files with system default apps
+
+## Window Configuration
+
+Default window settings (configured in `desktop/tauri.conf.json`):
+
+- Title: "OpenPencil"
+- Size: 1280×800px
+- Dev server: http://localhost:1420
+- Production: Bundled `dist/` folder
+
+## File Permissions
+
+File system permissions are configured in `desktop/tauri.conf.json`. If you encounter "Internal error" when saving files, check that the required paths are whitelisted in the configuration.
+
+## Dev Tools
+
+The desktop app includes dev tools for debugging. Access via the menu bar (added programmatically in development mode).
+
+## Bundle Targets
+
+The app can be built for:
+
+- **macOS** — Universal binary (Intel + Apple Silicon) via `universal-apple-darwin` target
+- **Windows** — x64 and ARM64 executables with WebView2 runtime
+- **Linux** — x64 binary with WebKit2GTK dependencies
+
+See [Building](/desktop/building) for build instructions and [Platform Requirements](/desktop/platform-requirements) for prerequisites.

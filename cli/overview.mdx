@@ -1,0 +1,71 @@
+---
+title: CLI Overview
+description: Headless .fig file operations without a GUI
+---
+
+The OpenPencil CLI provides headless access to .fig file operations — inspect, search, analyze, and render design files from the command line.
+
+## Installation
+
+```sh
+bunx @open-pencil/cli
+```
+
+Or install globally:
+
+```sh
+bun add -g @open-pencil/cli
+```
+
+## Quick Start
+
+```sh
+# Document stats, node types, fonts
+bunx @open-pencil/cli info design.fig
+
+# Visual node tree
+bunx @open-pencil/cli tree design.fig
+
+# Search by name or type
+bunx @open-pencil/cli find design.fig --type TEXT
+
+# Render to PNG
+bunx @open-pencil/cli export design.fig
+
+# JPG at 2x scale with 90% quality
+bunx @open-pencil/cli export design.fig -f jpg -s 2 -q 90
+```
+
+## Available Commands
+
+| Command | Description |
+|---------|-------------|
+| [`info`](/cli/info) | Show document info (pages, node counts, fonts) |
+| [`tree`](/cli/tree) | Print the node tree |
+| [`find`](/cli/find) | Find nodes by name or type |
+| [`export`](/cli/export) | Export to PNG, JPG, or WEBP |
+| [`analyze`](/cli/analyze) | Analyze design tokens and patterns |
+
+## JSON Output
+
+All commands support `--json` for machine-readable output:
+
+```sh
+bunx @open-pencil/cli info design.fig --json
+bunx @open-pencil/cli find design.fig --type FRAME --json
+bunx @open-pencil/cli analyze colors design.fig --json
+```
+
+## Output Formatting
+
+CLI output uses [agentfmt](https://github.com/mariozechner/agentfmt) for consistent, readable formatting:
+
+- Hierarchical trees with unicode line drawing
+- Histograms with visual bars
+- Entity formatting (type, name, ID)
+- Key-value pairs
+- Color-coded summaries
+
+## Requirements
+
+The CLI requires [Bun](https://bun.sh) runtime. All commands run headless — no GUI or browser needed.

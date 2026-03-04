@@ -1,0 +1,133 @@
+---
+title: Core API Overview
+description: OpenPencil core package API reference
+---
+
+# Core API Overview
+
+The `@open-pencil/core` package provides the core scene graph, rendering, layout, and Figma-compatible API for OpenPencil.
+
+## Installation
+
+```bash
+bun add @open-pencil/core
+```
+
+## Key Modules
+
+### SceneGraph
+
+Central data structure for the document tree. Nodes stored in a flat `Map<string, SceneNode>` with parent-child relationships via `parentIndex` references.
+
+[Learn more →](/api/scene-graph)
+
+### SkiaRenderer
+
+CanvasKit-based (Skia WASM) renderer. Renders scene graph to WebGL surface with viewport culling, picture caching, and overlay support.
+
+[Learn more →](/api/renderer)
+
+### Layout (Yoga)
+
+Flexbox layout engine using Yoga WASM. Computes auto-layout (Figma-compatible) for frames with `layoutMode !== 'NONE'`.
+
+[Learn more →](/api/layout)
+
+### FigmaAPI
+
+Figma Plugin API-compatible interface for scripting and tools. Wraps `SceneGraph` with a proxy-based API matching `figma.*` global.
+
+[Learn more →](/api/figma-api)
+
+## Architecture
+
+- **Zero DOM dependencies**: Runs headless in Node.js/Bun
+- **Flat node storage**: `Map<string, SceneNode>` for O(1) lookups
+- **Immutable-style updates**: `graph.updateNode(id, changes)` invalidates caches
+- **Picture caching**: Pre-render nodes with effects/shadows, skip re-render on pan/zoom
+
+## Usage Example
+
+```typescript
+import { SceneGraph, SkiaRenderer, FigmaAPI, computeAllLayouts } from '@open-pencil/core'
+import { getCanvasKit } from '@open-pencil/core'
+
+const ck = await getCanvasKit()
+const canvas = document.getElementById('canvas') as HTMLCanvasElement
+const surface = ck.MakeWebGLCanvasSurface(canvas)!
+
+// Create scene
+const graph = new SceneGraph()
+const page = graph.getPages()[0]
+const frame = graph.createNode('FRAME', page.id, {
+  x: 100,
+  y: 100,
+  width: 200,
+  height: 100,
+  fills: [{ type: 'SOLID', color: { r: 0.2, g: 0.4, b: 0.8 }, opacity: 1, visible: true }]
+})
+
+// Compute layout
+computeAllLayouts(graph)
+
+// Render
+const renderer = new SkiaRenderer(ck, surface)
+renderer.pageId = page.id
+renderer.render(graph, new Set(), {})
+
+// Use FigmaAPI
+const figma = new FigmaAPI(graph)
+const rect = figma.createRectangle()
+rect.resize(100, 100)
+rect.fills = [{ type: 'SOLID', color: { r: 1, g: 0, b: 0 }, opacity: 1, visible: true }]
+figma.currentPage.appendChild(rect)
+```
+
+## Type Definitions
+
+```typescript
+export type NodeType =
+  | 'CANVAS'
+  | 'FRAME'
+  | 'RECTANGLE'
+  | 'ELLIPSE'
+  | 'TEXT'
+  | 'LINE'
+  | 'STAR'
+  | 'POLYGON'
+  | 'VECTOR'
+  | 'GROUP'
+  | 'SECTION'
+  | 'COMPONENT'
+  | 'COMPONENT_SET'
+  | 'INSTANCE'
+  | 'CONNECTOR'
+  | 'SHAPE_WITH_TEXT'
+
+export interface SceneNode {
+  id: string
+  type: NodeType
+  name: string
+  parentId: string | null
+  childIds: string[]
+  x: number
+  y: number
+  width: number
+  height: number
+  rotation: number
+  fills: Fill[]
+  strokes: Stroke[]
+  effects: Effect[]
+  opacity: number
+  visible: boolean
+  locked: boolean
+  // ... 50+ more properties
+}
+```
+
+## Next Steps
+
+- [SceneGraph API](/api/scene-graph) - Node tree, variables, instances
+- [Renderer API](/api/renderer) - Rendering, overlays, culling
+- [Layout API](/api/layout) - Auto-layout computation
+- [FigmaAPI](/api/figma-api) - Figma-compatible scripting interface

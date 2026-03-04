@@ -1,0 +1,189 @@
+---
+title: Installation
+description: Install and verify the OpenPencil MCP server
+---
+
+# Installation
+
+The OpenPencil MCP server is distributed as `@open-pencil/mcp` on npm. It provides two executables:
+
+- `openpencil-mcp` — stdio transport (for IDE integrations)
+- `openpencil-mcp-http` — HTTP transport (for scripts and CI)
+
+## Requirements
+
+- **Bun** — The MCP server requires the Bun runtime. Install from [bun.sh](https://bun.sh).
+
+```bash
+curl -fsSL https://bun.sh/install | bash
+```
+
+## Global Installation
+
+Install the package globally to use the `openpencil-mcp` and `openpencil-mcp-http` commands from any directory:
+
+```bash
+bun add -g @open-pencil/mcp
+```
+
+Verify the installation:
+
+```bash
+openpencil-mcp --version
+```
+
+## Using bunx (No Install)
+
+Run the MCP server without installing by using `bunx`:
+
+```bash
+# Stdio transport
+bunx @open-pencil/mcp
+
+# HTTP transport
+bunx @open-pencil/mcp-http
+```
+
+This is useful for CI pipelines or one-off scripts.
+
+## Local Project Installation
+
+If you want to lock the MCP server version in a project:
+
+```bash
+bun add -D @open-pencil/mcp
+```
+
+Then reference it in your MCP config or scripts:
+
+```json
+{
+  "mcpServers": {
+    "open-pencil": {
+      "command": "bunx",
+      "args": ["@open-pencil/mcp"]
+    }
+  }
+}
+```
+
+## Verify Installation
+
+### Test Stdio Transport
+
+The stdio transport doesn't print anything to stdout (it uses stdout for MCP protocol messages). To verify it's working, check that it starts without errors:
+
+```bash
+echo '{}' | openpencil-mcp
+```
+
+If there are no errors, the server is running. Press `Ctrl+C` to stop.
+
+### Test HTTP Transport
+
+Start the HTTP server:
+
+```bash
+openpencil-mcp-http
+```
+
+You should see:
+
+```
+OpenPencil MCP server v0.6.0
+  Health:  http://127.0.0.1:3100/health
+  MCP:     http://127.0.0.1:3100/mcp
+  Auth:    disabled
+  CORS:    disabled
+  Eval:    disabled
+  Root:    /path/to/current/directory
+```
+
+Check the health endpoint:
+
+```bash
+curl http://localhost:3100/health
+```
+
+Expected response:
+
+```json
+{
+  "status": "ok",
+  "version": "0.6.0",
+  "authRequired": false,
+  "evalEnabled": false,
+  "fileRoot": "/path/to/current/directory"
+}
+```
+
+## Troubleshooting
+
+### Command not found: openpencil-mcp
+
+**Cause:** Global bin directory not in PATH.
+
+**Fix:** Add Bun's global bin to your PATH. Run:
+
+```bash
+echo 'export PATH="$HOME/.bun/bin:$PATH"' >> ~/.bashrc  # or ~/.zshrc
+source ~/.bashrc
+```
+
+Or use `bunx @open-pencil/mcp` instead of installing globally.
+
+### Bun runtime errors
+
+**Cause:** The MCP server requires Bun (not Node.js).
+
+**Fix:** Ensure the `command` in your MCP config is `openpencil-mcp` (which has a `#!/usr/bin/env bun` shebang), not `node`.
+
+### Port already in use (HTTP transport)
+
+**Cause:** Another process is using port 3100.
+
+**Fix:** Change the port with the `PORT` environment variable:
+
+```bash
+PORT=3200 openpencil-mcp-http
+```
+
+### File access denied
+
+**Cause:** HTTP transport restricts file access to `OPENPENCIL_MCP_ROOT`.
+
+**Fix:** Set the root directory:
+
+```bash
+OPENPENCIL_MCP_ROOT=/path/to/your/project openpencil-mcp-http
+```
+
+Or use absolute paths in tool calls.
+
+## Version Check
+
+Check the installed version:
+
+```bash
+bun pm ls @open-pencil/mcp
+```
+
+Or query the HTTP health endpoint:
+
+```bash
+curl http://localhost:3100/health | jq .version
+```
+
+## Updating
+
+Update to the latest version:
+
+```bash
+bun add -g @open-pencil/mcp@latest
+```
+
+## Next Steps
+
+- [Stdio Transport Setup](/mcp/stdio-transport) — configure IDE integrations
+- [HTTP Transport Setup](/mcp/http-transport) — run the HTTP server
+- [Tools Reference](/mcp/tools-reference) — explore available tools

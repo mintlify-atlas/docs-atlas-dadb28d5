@@ -1,0 +1,225 @@
+---
+title: Installation
+description: Install OpenPencil on desktop or use the web app
+---
+
+# Installation
+
+OpenPencil runs as a desktop app (macOS, Windows, Linux) or directly in your browser. No account or subscription required.
+
+## Web app (no install)
+
+The fastest way to try OpenPencil is the web version:
+
+**[app.openpencil.dev →](https://app.openpencil.dev)**
+
+Runs entirely in your browser using CanvasKit WASM. All files are stored locally in IndexedDB. No data leaves your machine.
+
+## Desktop app
+
+Download the latest release for your platform:
+
+**[Download from GitHub releases →](https://github.com/open-pencil/open-pencil/releases/latest)**
+
+### Supported platforms
+
+<CardGroup cols={3}>
+  <Card title="macOS" icon="apple">
+    - Apple Silicon (arm64)
+    - Intel (x64)
+    - Universal binary available
+  </Card>
+  <Card title="Windows" icon="windows">
+    - x64 (64-bit Intel/AMD)
+    - ARM64 (Windows on ARM)
+  </Card>
+  <Card title="Linux" icon="linux">
+    - x64 (64-bit)
+    - Debian/Ubuntu packages
+    - AppImage for other distros
+  </Card>
+</CardGroup>
+
+### macOS installation
+
+<Steps>
+  <Step title="Download the installer">
+    Choose the `.dmg` file from the releases page:
+    - `OpenPencil_universal.dmg` — works on both Apple Silicon and Intel Macs
+    - `OpenPencil_aarch64.dmg` — Apple Silicon only (smaller download)
+    - `OpenPencil_x64.dmg` — Intel Macs only
+  </Step>
+  
+  <Step title="Install the app">
+    1. Open the downloaded `.dmg` file
+    2. Drag OpenPencil to your Applications folder
+    3. Launch OpenPencil from Applications
+  </Step>
+  
+  <Step title="First launch">
+    macOS may show a security warning because the app isn't code-signed yet.
+    
+    To open:
+    1. Right-click OpenPencil in Applications
+    2. Select "Open"
+    3. Click "Open" in the dialog
+    
+    <Note>
+      Code signing is planned for a future release. Once implemented, this step won't be necessary.
+    </Note>
+  </Step>
+</Steps>
+
+### Windows installation
+
+<Steps>
+  <Step title="Download the installer">
+    Choose the `.msi` file from the releases page:
+    - `OpenPencil_x64.msi` — 64-bit Intel/AMD processors
+    - `OpenPencil_arm64.msi` — Windows on ARM devices
+  </Step>
+  
+  <Step title="Run the installer">
+    1. Double-click the `.msi` file
+    2. Follow the installation wizard
+    3. Launch OpenPencil from the Start menu
+  </Step>
+  
+  <Step title="WebView2 requirement">
+    OpenPencil uses WebView2 for rendering. It's pre-installed on:
+    - Windows 10 version 1803 or later
+    - Windows 11
+    
+    If you're on an older version, download WebView2 from [Microsoft](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
+  </Step>
+</Steps>
+
+### Linux installation
+
+<Steps>
+  <Step title="Download the package">
+    Choose the package for your distribution:
+    - `.deb` — Debian, Ubuntu, and derivatives
+    - `.AppImage` — Universal Linux package (works on any distro)
+  </Step>
+  
+  <Step title="Install system dependencies">
+    On Debian/Ubuntu:
+    
+    ```bash
+    sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file \
+      libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+    ```
+    
+    For other distributions, see the [Tauri v2 prerequisites](https://v2.tauri.app/start/prerequisites/).
+  </Step>
+  
+  <Step title="Install OpenPencil">
+    **For .deb packages:**
+    
+    ```bash
+    sudo dpkg -i OpenPencil_*.deb
+    sudo apt-get install -f  # Install any missing dependencies
+    ```
+    
+    **For AppImage:**
+    
+    ```bash
+    chmod +x OpenPencil_*.AppImage
+    ./OpenPencil_*.AppImage
+    ```
+  </Step>
+</Steps>
+
+## Package size
+
+OpenPencil desktop apps are extremely lightweight:
+
+- macOS: ~7 MB
+- Windows: ~7 MB
+- Linux: ~8 MB
+
+Fast download, fast cold start, minimal disk space.
+
+## Build from source
+
+If you want to build OpenPencil yourself or contribute to development:
+
+<Steps>
+  <Step title="Install prerequisites">
+    **Required:**
+    - [Bun](https://bun.sh/) — JavaScript runtime and package manager
+    - [Rust](https://rustup.rs/) — for Tauri desktop builds
+    
+    **Platform-specific:**
+    - macOS: Xcode Command Line Tools (`xcode-select --install`)
+    - Windows: [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with "Desktop development with C++"
+    - Linux: See system dependencies in the Linux installation section above
+  </Step>
+  
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/open-pencil/open-pencil.git
+    cd open-pencil
+    ```
+  </Step>
+  
+  <Step title="Install dependencies">
+    ```bash
+    bun install
+    ```
+  </Step>
+  
+  <Step title="Run in development mode">
+    **Web app:**
+    ```bash
+    bun run dev
+    ```
+    Opens at `http://localhost:1420`
+    
+    **Desktop app:**
+    ```bash
+    bun run tauri dev
+    ```
+    Launches with hot reload enabled.
+  </Step>
+  
+  <Step title="Build for production">
+    **Web app:**
+    ```bash
+    bun run build
+    ```
+    
+    **Desktop app:**
+    ```bash
+    bun run tauri build
+    ```
+    
+    For macOS universal binary:
+    ```bash
+    bun run tauri build --target universal-apple-darwin
+    ```
+  </Step>
+</Steps>
+
+## Update OpenPencil
+
+OpenPencil doesn't have auto-updates yet. To update:
+
+1. Download the latest release from [GitHub](https://github.com/open-pencil/open-pencil/releases/latest)
+2. Install over your existing version
+
+<Note>
+  Auto-updates are planned for a future release.
+</Note>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Quick start" icon="rocket" href="/quickstart">
+    Learn the basics and create your first design
+  </Card>
+  <Card title="CLI reference" icon="terminal" href="/cli/overview">
+    Install the headless CLI for automation
+  </Card>
+</CardGroup>

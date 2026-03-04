@@ -1,0 +1,131 @@
+---
+title: Introduction
+description: Open-source, AI-native design editor. Figma-compatible, AI-first, fully local.
+---
+
+# OpenPencil
+
+Open-source, AI-native design editor. Figma-compatible, AI-first, fully local.
+
+<Note>
+  **Status:** Active development. Not ready for production use.
+</Note>
+
+[Try it online →](https://app.openpencil.dev) · [Download](https://github.com/open-pencil/open-pencil/releases/latest) · [GitHub](https://github.com/open-pencil/open-pencil)
+
+## Why OpenPencil?
+
+Figma is a closed platform that actively fights programmatic access. Their MCP server, launched in June 2025, was read-only — you could pull design context but not create or modify anything. When the community filled that gap with CDP-based tools, Figma 126.1.2 started stripping `--remote-debugging-port` on startup — killing those tools overnight.
+
+This is a supply chain problem. Designers and developers build workflows on top of their design tool. When that tool is closed-source, the vendor controls what's possible. They can break your tooling with a point release. Your design files are in a proprietary binary format that only their software can fully read.
+
+Coding tools went through the same shift. VS Code opened the editor. LLMs opened code generation. Projects like [pi](https://github.com/mariozechner/pi-coding-agent) opened the AI coding agent. Design tools are next.
+
+## Core principles
+
+<CardGroup cols={2}>
+  <Card title="Open source" icon="code">
+    MIT license. Read and modify everything. No vendor lock-in.
+  </Card>
+  <Card title="Figma-compatible" icon="file">
+    Opens .fig files natively. Copy and paste nodes between apps.
+  </Card>
+  <Card title="AI-native" icon="sparkles">
+    Built-in chat with 75 tools. Bring your own API key. No subscription.
+  </Card>
+  <Card title="Free forever" icon="download">
+    No account, no subscription, no internet required. ~7 MB install.
+  </Card>
+  <Card title="Programmable" icon="terminal">
+    Headless CLI, MCP server. Every operation is scriptable.
+  </Card>
+  <Card title="Local-first" icon="shield">
+    Your design files are yours. Your tools should be too.
+  </Card>
+</CardGroup>
+
+## Key features
+
+### Figma compatibility
+
+- **Native .fig file import and export** — read and write native Figma files using the Kiwi binary format
+- **Copy and paste with Figma** — select nodes in Figma, paste into OpenPencil (and vice versa). Uses the same Kiwi binary format as .fig files
+- **Full rendering parity** — CanvasKit (Skia WASM) renderer with Yoga layout engine
+
+### Design tools
+
+- **Vector drawing** — shapes, pen tool with vector networks, boolean operations
+- **Rich text** — system fonts with queryLocalFonts API, text styles, advanced typography
+- **Auto-layout** — Flexbox-powered layout with Yoga WASM (CSS Grid coming when upstream adds support)
+- **Components** — live sync between component definitions and instances with override support
+- **Variables** — design tokens with modes and collections for theming
+
+### AI and automation
+
+- **Built-in AI chat** — describe what you want, the AI builds it. 75 tools wired to chat, CLI, and MCP
+- **MCP server** — connect Claude Code, Cursor, or any MCP client to read/write .fig files headlessly via stdio or HTTP
+- **Headless CLI** — inspect, search, analyze, and render .fig files without a GUI using `@open-pencil/cli`
+- **Tool ecosystem** — create shapes, set fills/strokes/layout, variables, vectors, boolean ops, viewport, find nodes, render JSX to design nodes
+
+### Collaboration
+
+- **Real-time collaboration** — P2P via WebRTC using Trystero, no server required
+- **Presence and cursors** — see collaborators' cursors, selections, and edits in real time
+- **Follow mode** — click a peer's avatar to follow their viewport
+- **Local persistence** — document state persisted in IndexedDB with y-indexeddb, survives page refresh
+
+### Platform support
+
+- **Desktop apps** — Tauri v2 for macOS (Apple Silicon + Intel), Windows (x64 + ARM64), Linux (x64)
+- **Web app** — runs in the browser at [app.openpencil.dev](https://app.openpencil.dev), no install needed
+- **Tiny footprint** — ~7 MB desktop install, fast cold start
+
+## Get started
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Download the desktop app or use the web version
+  </Card>
+  <Card title="Quick start" icon="rocket" href="/quickstart">
+    Learn the basics and create your first design
+  </Card>
+  <Card title="CLI reference" icon="terminal" href="/cli/overview">
+    Headless operations for automation and CI/CD
+  </Card>
+  <Card title="MCP server" icon="plug" href="/mcp/overview">
+    Connect AI coding tools to read and modify .fig files
+  </Card>
+</CardGroup>
+
+## Tech stack
+
+| Layer | Technology |
+|-------|------------|
+| UI | Vue 3, VueUse, Reka UI |
+| Styling | Tailwind CSS 4 |
+| Rendering | Skia (CanvasKit WASM) |
+| Layout | Yoga WASM |
+| File format | Kiwi binary (vendored) + Zstd + ZIP |
+| Color | culori |
+| Collaboration | Trystero (WebRTC P2P) + Yjs (CRDT) + y-indexeddb |
+| Desktop | Tauri v2 |
+| CLI | citty, agentfmt |
+| MCP | @modelcontextprotocol/sdk, Hono |
+| Testing | Playwright (visual regression), bun:test (unit) |
+| Tooling | Vite 7, oxlint, oxfmt, typescript-go |
+
+## What's next
+
+OpenPencil is under active development. Planned features:
+
+- 100% .fig compatibility — full rendering parity with Figma
+- Shader effects (SkSL), skewing, native OkHCL color support
+- Component libraries — publish, share, and consume design systems
+- Live reload when .fig file changes on disk (MCP server → desktop app workflow)
+- More AI providers (Anthropic API, Claude Code subscription, Gemini, local models via Ollama)
+- Code signing (Apple & Azure certificates for properly signed binaries)
+- CI tools — design linting, code export, visual regression in pipelines
+
+## License
+
+MIT — read and modify everything. Your design files are yours. Your tools should be too.

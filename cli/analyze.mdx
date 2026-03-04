@@ -1,0 +1,303 @@
+---
+title: analyze
+description: Analyze design tokens, patterns, and consistency
+---
+
+The `analyze` command inspects design files for token usage, inconsistencies, and repeated patterns.
+
+## Subcommands
+
+| Command | Description |
+|---------|-------------|
+| [`colors`](#colors) | Color palette usage and similar color detection |
+| [`typography`](#typography) | Font family, size, and weight distribution |
+| [`spacing`](#spacing) | Gap and padding values with grid alignment |
+| [`clusters`](#clusters) | Repeated design patterns (potential components) |
+
+---
+
+## colors
+
+Analyze color palette usage, detect similar colors, and identify hardcoded vs. variable-based colors.
+
+### Usage
+
+```sh
+bunx @open-pencil/cli analyze colors <file> [options]
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--limit` | Max colors to show (default: 30) |
+| `--threshold` | Distance threshold for clustering similar colors 0–50 (default: 15) |
+| `--similar` | Show similar color clusters |
+| `--json` | Output as JSON |
+
+### Examples
+
+**Color usage histogram:**
+
+```sh
+bunx @open-pencil/cli analyze colors design.fig
+```
+
+Output:
+
+```
+  Colors by usage
+
+  #0066ff  ████████████████████████████████████████  142
+  #1a1a1a  ██████████████████████████████            98
+  #ffffff  ████████████████████                      67
+  #f5f5f5  ██████████                                34
+
+  unique colors: 47  from variables: 12  hardcoded: 35
+```
+
+**Find similar colors:**
+
+```sh
+bunx @open-pencil/cli analyze colors design.fig --similar
+```
+
+Output:
+
+```
+  Similar colors (consider merging)
+
+  1. #1a1a1a, #1c1c1c, #1e1e1e  {suggest: #1a1a1a, total: 45×}
+  2. #f5f5f5, #f7f7f7, #fafafa  {suggest: #f5f5f5, total: 23×}
+```
+
+### What It Shows
+
+- **Histogram** — colors sorted by usage (fills, strokes, effects)
+- **Variable attribution** — shows `$variableName` tag if color is bound to a variable
+- **Summary** — unique colors, variable-based, hardcoded
+- **Similar clusters** — groups of colors within the threshold distance (Euclidean RGB space)
+
+---
+
+## typography
+
+Analyze font usage: families, sizes, weights, and line heights.
+
+### Usage
+
+```sh
+bunx @open-pencil/cli analyze typography <file> [options]
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--group-by` | Group by: family, size, weight (default: show all styles) |
+| `--limit` | Max styles to show (default: 30) |
+| `--json` | Output as JSON |
+
+### Examples
+
+**All styles:**
+
+```sh
+bunx @open-pencil/cli analyze typography design.fig
+```
+
+Output:
+
+```
+  Typography styles
+
+  Inter 48px Bold / 56px        ████████████████  24
+  Inter 16px Regular / auto     ████████████      18
+  Roboto Mono 14px Medium       ████████          12
+
+  unique styles: 15 from 142 text nodes
+```
+
+**Group by font family:**
+
+```sh
+bunx @open-pencil/cli analyze typography design.fig --group-by family
+```
+
+Output:
+
+```
+  Font families
+
+  Inter          ████████████████████████████████████████  98
+  Roboto Mono    ████████████                              24
+  SF Pro Display ████████                                  20
+```
+
+**Group by size:**
+
+```sh
+bunx @open-pencil/cli analyze typography design.fig --group-by size
+```
+
+**Group by weight:**
+
+```sh
+bunx @open-pencil/cli analyze typography design.fig --group-by weight
+```
+
+Output:
+
+```
+  Font weights
+
+  400 Regular    ████████████████████████████████████████  78
+  700 Bold       ████████████████████                      42
+  500 Medium     ████████                                  22
+```
+
+---
+
+## spacing
+
+Analyze auto-layout spacing values (gap, padding) and detect off-grid values.
+
+### Usage
+
+```sh
+bunx @open-pencil/cli analyze spacing <file> [options]
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--grid` | Base grid size to check against (default: 8) |
+| `--json` | Output as JSON |
+
+### Examples
+
+**Basic spacing audit:**
+
+```sh
+bunx @open-pencil/cli analyze spacing design.fig
+```
+
+Output:
+
+```
+  Gap values
+
+    16px  ████████████████████████████████████████  45
+     8px  ████████████████████████████              32
+    24px  ████████████████                          18
+    12px  ████████                                  9  ⚠
+
+  Padding values
+
+    16px  ████████████████████████████████████████  52
+    24px  ████████████████████                      28
+     8px  ████████████                              15
+
+  gap values: 12  padding values: 8
+
+  ⚠ Off-grid values (not ÷8px)
+  Gaps: 12px, 20px
+  Paddings: 6px, 18px
+```
+
+**Check against 4px grid:**
+
+```sh
+bunx @open-pencil/cli analyze spacing design.fig --grid 4
+```
+
+### What It Shows
+
+- **Gap values** — `itemSpacing` and `counterAxisSpacing` from auto-layout frames
+- **Padding values** — `paddingTop`, `paddingRight`, `paddingBottom`, `paddingLeft`
+- **Grid alignment** — values not divisible by the grid size are marked with `⚠`
+- **Summary** — unique gap/padding values and off-grid violations
+
+---
+
+## clusters
+
+Find repeated design patterns that could be extracted into components.
+
+### Usage
+
+```sh
+bunx @open-pencil/cli analyze clusters <file> [options]
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--limit` | Max clusters to show (default: 20) |
+| `--min-size` | Min node size in px (default: 30) |
+| `--min-count` | Min instances to form cluster (default: 2) |
+| `--json` | Output as JSON |
+
+### Examples
+
+**Find repeated patterns:**
+
+```sh
+bunx @open-pencil/cli analyze clusters design.fig
+```
+
+Output:
+
+```
+  Repeated patterns
+
+  1. 12× frame "Card" (95% match)
+     {size: 320×240, structure: Frame > [Text, Rect, Text×2], examples: 1:23, 1:45, 2:12}
+
+  2. 8× frame "Button" (100% match)
+     {size: 120×40, structure: Frame > [Text], examples: 1:56, 1:78, 3:4}
+
+  3. 5× frame "Icon Badge" (88% match)
+     {size: 24×24 (±2px), structure: Frame > [Vector], examples: 2:34, 2:56, 3:12}
+
+  clusters: 15 from 1247 nodes (89 clustered)
+```
+
+**Adjust sensitivity:**
+
+```sh
+bunx @open-pencil/cli analyze clusters design.fig --min-count 3 --min-size 50
+```
+
+### How It Works
+
+- **Signature** — nodes are clustered by type, size (rounded to 10px), and child structure
+- **Child structure** — encodes child types and counts (e.g., `Frame > [Text×2, Rect]`)
+- **Confidence score** — based on size variance and child count consistency
+  - 100% = exact match (same size, same child count)
+  - 80–99% = minor variance (±10px, ±1 child)
+  - 60–79% = moderate variance (±20px, ±2 children)
+
+### Use Cases
+
+- Identify component extraction candidates
+- Audit design consistency
+- Find duplicate artboards
+- Detect copy-paste patterns that should be instances
+
+---
+
+## JSON Output
+
+All `analyze` subcommands support `--json`:
+
+```sh
+bunx @open-pencil/cli analyze colors design.fig --json
+bunx @open-pencil/cli analyze typography design.fig --json
+bunx @open-pencil/cli analyze spacing design.fig --json
+bunx @open-pencil/cli analyze clusters design.fig --json
+```
+
+JSON output includes raw data for further processing (CI linting, design system audits, etc.).

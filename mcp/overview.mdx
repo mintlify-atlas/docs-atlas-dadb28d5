@@ -1,0 +1,111 @@
+---
+title: MCP Server Overview
+description: Connect AI coding tools to OpenPencil for headless design file operations
+---
+
+# MCP Server Overview
+
+OpenPencil provides a Model Context Protocol (MCP) server that lets AI coding assistants read and modify `.fig` files programmatically. Connect tools like Claude Code, Cursor, Windsurf, or custom scripts to create, inspect, and transform design files without a GUI.
+
+## What is MCP?
+
+The Model Context Protocol is an open standard that enables AI assistants to interact with external tools and data sources. OpenPencil's MCP server exposes 75+ design operations as tool calls that AI models can invoke.
+
+## Key Features
+
+- **75+ tools** — create shapes, set fills/strokes/layout, manage variables, boolean operations, vector manipulation, viewport control
+- **Headless file operations** — open, save, and create `.fig` files without the desktop app
+- **Two transports** — Stdio for IDE integrations (Claude Code, Cursor), HTTP for scripts and CI
+- **Full Figma Plugin API compatibility** — familiar abstractions if you've worked with Figma plugins
+- **Security controls** — file access restrictions, optional auth, eval tool toggles
+
+## Architecture
+
+The MCP server reuses OpenPencil's core tool definitions from `@open-pencil/core`. Each tool:
+
+1. Operates on a `FigmaAPI` instance (Plugin API compatible)
+2. Has typed parameters (string, number, boolean, color, string arrays)
+3. Returns JSON results or errors
+4. Is automatically exposed via both stdio and HTTP transports
+
+```
+packages/core/src/tools/schema.ts  →  ALL_TOOLS array
+                                        ↓
+packages/mcp/src/server.ts         →  createServer() converts to MCP tools
+                                        ↓
+         ┌──────────────────────────────┴───────────────────────────────┐
+         ↓                                                              ↓
+packages/mcp/src/index.ts                              packages/mcp/src/http.ts
+(stdio transport)                                       (HTTP transport with Hono)
+```
+
+## Available Tools
+
+Tools are organized into categories:
+
+- **Read** — `get_selection`, `get_page_tree`, `get_node`, `find_nodes`
+- **Create** — `create_shape`, `render` (JSX), `create_component`, `create_instance`, `create_page`
+- **Modify** — `set_fill`, `set_stroke`, `set_effects`, `update_node`, `set_layout`
+- **Structure** — `delete_node`, `clone_node`, `reparent_node`, `group_nodes`, `ungroup_node`
+- **Components** — `create_component`, `create_instance`
+- **Pages** — `list_pages`, `switch_page`, `create_page`
+- **Variables** — `list_variables`, `create_variable`, `set_variable`, `bind_variable`
+- **Boolean operations** — `boolean_union`, `boolean_subtract`, `boolean_intersect`, `boolean_exclude`
+- **Vector paths** — `path_get`, `path_set`, `path_scale`, `path_flip`
+- **Viewport** — `viewport_get`, `viewport_set`, `viewport_zoom_to_fit`
+- **Text** — `set_text`, `set_font`, `set_text_properties`
+- **Eval** — `eval` (execute arbitrary JavaScript with Figma API access)
+
+See the [Tools Reference](/mcp/tools-reference) for the complete list with parameters.
+
+## Transport Options
+
+### Stdio Transport
+
+For IDE integrations (Claude Code, Cursor, Windsurf). The AI assistant spawns `openpencil-mcp` as a subprocess and communicates over stdin/stdout.
+
+**Use when:**
+- Integrating with Claude Code, Cursor, Windsurf, or other MCP-compatible IDEs
+- You want the assistant to edit `.fig` files in your project
+
+[→ Stdio Transport Setup](/mcp/stdio-transport)
+
+### HTTP Transport
+
+For scripts, browser extensions, CI pipelines, or custom integrations. Starts an HTTP server with SSE (Server-Sent Events) streaming.
+
+**Use when:**
+- Writing Node.js/Bun scripts to automate design file operations
+- Building a browser extension or web tool
+- Running design linting or export in CI
+- Need multi-session support (each HTTP session maintains separate document state)
+
+[→ HTTP Transport Setup](/mcp/http-transport)
+
+## Security Model
+
+- **Stdio** — inherits file permissions from the parent process. `eval` tool is enabled by default.
+- **HTTP** — restricts file access to `OPENPENCIL_MCP_ROOT` (defaults to current working directory). `eval` tool is disabled. Optional bearer token auth.
+
+See transport-specific pages for detailed security configuration.
+
+## Installation
+
+Install the MCP server globally:
+
+```bash
+bun add -g @open-pencil/mcp
+```
+
+Or use `bunx` to run without installing:
+
+```bash
+bunx @open-pencil/mcp  # stdio
+bunx @open-pencil/mcp-http  # HTTP server
+```
+
+## Next Steps
+
+- [Stdio Transport Setup](/mcp/stdio-transport) — configure Claude Code, Cursor, or Windsurf
+- [HTTP Transport Setup](/mcp/http-transport) — run the HTTP server for scripts and CI
+- [Tools Reference](/mcp/tools-reference) — browse all 75+ available tools

@@ -1,0 +1,145 @@
+---
+title: find
+description: Search for nodes by name or type
+---
+
+Find nodes matching a name pattern or type filter. Returns a flat list with node details.
+
+## Usage
+
+```sh
+bunx @open-pencil/cli find <file> [options]
+```
+
+## Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `file` | Path to .fig file (required) |
+
+## Options
+
+| Option | Alias | Description |
+|--------|-------|-------------|
+| `--name` | | Node name (partial match, case-insensitive) |
+| `--type` | | Node type: FRAME, TEXT, RECTANGLE, INSTANCE, etc. |
+| `--page` | | Page name (default: search all pages) |
+| `--limit` | | Max results (default: 100) |
+| `--json` | | Output as JSON |
+
+## Examples
+
+### Find by name
+
+```sh
+bunx @open-pencil/cli find design.fig --name button
+```
+
+Matches any node with "button" in the name (case-insensitive):
+
+```
+  Found 12 nodes
+
+  1. rect "Button Primary" [id:1:23]  {fill: #0066ff, radius: 8px}
+  2. rect "Button Secondary" [id:1:24]  {fill: #ffffff, stroke: #0066ff 1px}
+  3. frame "Button Group" [id:2:15]  {layout: horizontal gap=12}
+```
+
+### Find by type
+
+```sh
+bunx @open-pencil/cli find design.fig --type TEXT
+```
+
+Finds all TEXT nodes:
+
+```
+  Found 98 nodes
+
+  1. text "Heading" [id:1:5]  {font: 48px Inter, fill: #1a1a1a}
+  2. text "Body" [id:1:6]  {font: 16px Inter, fill: #666666}
+  3. text "Label" [id:1:7]  {font: 12px Inter, fill: #999999}
+```
+
+### Find by name and type
+
+```sh
+bunx @open-pencil/cli find design.fig --name icon --type INSTANCE
+```
+
+Finds component instances with "icon" in the name.
+
+### Search specific page
+
+```sh
+bunx @open-pencil/cli find design.fig --name hero --page Homepage
+```
+
+### Limit results
+
+```sh
+bunx @open-pencil/cli find design.fig --type FRAME --limit 10
+```
+
+### JSON output
+
+```sh
+bunx @open-pencil/cli find design.fig --type TEXT --json
+```
+
+Output:
+
+```json
+[
+  {
+    "id": "1:5",
+    "name": "Heading",
+    "type": "TEXT",
+    "width": 800,
+    "height": 60
+  },
+  {
+    "id": "1:6",
+    "name": "Body",
+    "type": "TEXT",
+    "width": 600,
+    "height": 24
+  }
+]
+```
+
+## Node Types
+
+Common types to search for:
+
+- `FRAME` — frames (containers with layout)
+- `TEXT` — text layers
+- `RECTANGLE` — rectangles
+- `ELLIPSE` — circles/ellipses
+- `VECTOR` — vector paths
+- `LINE` — lines
+- `POLYGON` — polygons
+- `STAR` — stars
+- `INSTANCE` — component instances
+- `COMPONENT` — component definitions
+- `COMPONENT_SET` — component sets (variants)
+- `GROUP` — groups
+- `SECTION` — sections
+- `BOOLEAN_OPERATION` — boolean operations
+
+## Search Behavior
+
+- **Name matching** — partial, case-insensitive substring match
+- **Type matching** — exact match (case-insensitive input, normalized to uppercase)
+- **Page filtering** — if `--page` is provided, only searches that page; otherwise searches all pages
+- **Limit** — stops after `--limit` results (default 100)
+- **Traversal** — depth-first search through the scene graph
+
+## Use Cases
+
+- Find all instances of a component
+- Locate text nodes that need translation
+- Audit frame layout modes
+- Find nodes with specific naming conventions
+- Export node lists for design system documentation
+- Identify orphaned components

@@ -1,0 +1,471 @@
+---
+title: HTTP Transport
+description: Run the OpenPencil MCP server as an HTTP service for scripts, CI, and custom integrations
+---
+
+# HTTP Transport
+
+The HTTP transport runs the OpenPencil MCP server as an HTTP service with Server-Sent Events (SSE) streaming. Use it for scripts, browser extensions, CI pipelines, or any custom integration that can make HTTP requests.
+
+## How It Works
+
+1. Start `openpencil-mcp-http` — binds to `127.0.0.1:3100` by default
+2. Clients send MCP protocol messages via `POST /mcp` with SSE responses
+3. Each HTTP session maintains separate document state (opened `.fig` file)
+4. Sessions are tracked via `mcp-session-id` header
+5. The server stays running until you stop it (`Ctrl+C`)
+
+## Installation
+
+Install globally:
+
+```bash
+bun add -g @open-pencil/mcp
+```
+
+Or use `bunx` (no install):
+
+```bash
+bunx @open-pencil/mcp-http
+```
+
+## Starting the Server
+
+Basic usage (binds to `127.0.0.1:3100`):
+
+```bash
+openpencil-mcp-http
+```
+
+Output:
+
+```
+OpenPencil MCP server v0.6.0
+  Health:  http://127.0.0.1:3100/health
+  MCP:     http://127.0.0.1:3100/mcp
+  Auth:    disabled
+  CORS:    disabled
+  Eval:    disabled
+  Root:    /path/to/current/directory
+```
+
+### Configuration via Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3100` | HTTP port to bind |
+| `HOST` | `127.0.0.1` | Host to bind (use `0.0.0.0` for public access) |
+| `OPENPENCIL_MCP_ROOT` | `process.cwd()` | Allowed file access root (security boundary) |
+| `OPENPENCIL_MCP_AUTH_TOKEN` | (none) | Bearer token for authentication |
+| `OPENPENCIL_MCP_CORS_ORIGIN` | (none) | CORS origin (e.g. `https://app.example.com`) |
+
+### Examples
+
+**Custom port:**
+
+```bash
+PORT=8080 openpencil-mcp-http
+```
+
+**Public access (bind to all interfaces):**
+
+```bash
+HOST=0.0.0.0 PORT=3100 openpencil-mcp-http
+```
+
+**Restrict file access to a specific directory:**
+
+```bash
+OPENPENCIL_MCP_ROOT=/home/user/designs openpencil-mcp-http
+```
+
+**Enable authentication:**
+
+```bash
+OPENPENCIL_MCP_AUTH_TOKEN=your-secret-token openpencil-mcp-http
+```
+
+Clients must send:
+
+```
+Authorization: Bearer your-secret-token
+```
+
+or
+
+```
+x-mcp-token: your-secret-token
+```
+
+**Enable CORS for browser extensions:**
+
+```bash
+OPENPENCIL_MCP_CORS_ORIGIN=https://app.openpencil.dev openpencil-mcp-http
+```
+
+## Endpoints
+
+### `GET /health`
+
+Health check endpoint. Returns server status and configuration.
+
+**Request:**
+
+```bash
+curl http://localhost:3100/health
+```
+
+**Response:**
+
+```json
+{
+  "status": "ok",
+  "version": "0.6.0",
+  "authRequired": false,
+  "evalEnabled": false,
+  "fileRoot": "/path/to/current/directory"
+}
+```
+
+### `POST /mcp`
+
+MCP protocol endpoint. Send MCP messages, receive SSE responses.
+
+**Headers:**
+
+- `Content-Type: application/json` (required)
+- `mcp-session-id: <uuid>` (optional, for session persistence)
+- `Authorization: Bearer <token>` (if auth enabled)
+- `x-mcp-token: <token>` (alternative auth header)
+
+**Request body:** MCP protocol message (JSON-RPC 2.0)
+
+**Response:** Server-Sent Events (SSE) stream
+
+See [MCP specification](https://modelcontextprotocol.io/docs/spec) for message format.
+
+## Session Management
+
+The HTTP transport maintains separate document state per session. Sessions are identified by the `mcp-session-id` header.
+
+### First Request (Session Creation)
+
+Omit `mcp-session-id`. The server generates a new session ID and returns it in the response:
+
+```bash
+curl -X POST http://localhost:3100/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
+  -i
+```
+
+Response headers:
+
+```
+mcp-session-id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+```
+
+### Subsequent Requests (Session Reuse)
+
+Include the `mcp-session-id` header to reuse the session:
+
+```bash
+curl -X POST http://localhost:3100/mcp \
+  -H "Content-Type: application/json" \
+  -H "mcp-session-id: 3fa85f64-5717-4562-b3fc-2c963f66afa6" \
+  -d '{...}'
+```
+
+The server maintains the opened `.fig` file and current page across requests.
+
+## Security
+
+### File Access Restrictions
+
+The server restricts file access to `OPENPENCIL_MCP_ROOT` (defaults to current working directory). Attempting to open files outside this directory will fail:
+
+```json
+{
+  "error": "Path \"/etc/passwd\" is outside allowed root \"/home/user/project\""
+}
+```
+
+**Bypass:** Use absolute paths within the allowed root:
+
+```bash
+OPENPENCIL_MCP_ROOT=/home/user openpencil-mcp-http
+```
+
+Now you can access `/home/user/designs/file.fig`.
+
+### Authentication
+
+Set `OPENPENCIL_MCP_AUTH_TOKEN` to require bearer token authentication:
+
+```bash
+OPENPENCIL_MCP_AUTH_TOKEN=my-secret-token openpencil-mcp-http
+```
+
+Clients must send:
+
+```bash
+curl -X POST http://localhost:3100/mcp \
+  -H "Authorization: Bearer my-secret-token" \
+  ...
+```
+
+Or use the `x-mcp-token` header:
+
+```bash
+curl -X POST http://localhost:3100/mcp \
+  -H "x-mcp-token: my-secret-token" \
+  ...
+```
+
+Requests without a valid token receive a `401 Unauthorized` response.
+
+### Eval Tool
+
+The `eval` tool is **disabled** in HTTP transport (security default). Attempting to call it will fail.
+
+To enable it, modify `packages/mcp/src/http.ts` and set `enableEval: true` in `createServer()` options. Not recommended for production.
+
+### CORS
+
+CORS is **disabled** by default. Enable it for browser-based clients:
+
+```bash
+OPENPENCIL_MCP_CORS_ORIGIN=https://app.example.com openpencil-mcp-http
+```
+
+The server will respond with:
+
+```
+Access-Control-Allow-Origin: https://app.example.com
+Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS
+Access-Control-Allow-Headers: Content-Type, Authorization, ...
+```
+
+### Network Binding
+
+By default, the server binds to `127.0.0.1` (localhost only). To accept connections from other machines:
+
+```bash
+HOST=0.0.0.0 openpencil-mcp-http
+```
+
+**Warning:** Only bind to `0.0.0.0` if you trust the network and have authentication enabled.
+
+## Usage Examples
+
+### cURL (Manual Testing)
+
+**Health check:**
+
+```bash
+curl http://localhost:3100/health
+```
+
+**Create a new document:**
+
+```bash
+curl -X POST http://localhost:3100/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": {
+      "name": "new_document",
+      "arguments": {}
+    }
+  }'
+```
+
+**Open a file:**
+
+```bash
+curl -X POST http://localhost:3100/mcp \
+  -H "Content-Type: application/json" \
+  -H "mcp-session-id: <your-session-id>" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "tools/call",
+    "params": {
+      "name": "open_file",
+      "arguments": {
+        "path": "/absolute/path/to/design.fig"
+      }
+    }
+  }'
+```
+
+### Node.js / Bun Script
+
+```javascript
+import { Client } from '@modelcontextprotocol/sdk/client/index.js'
+import { WebStandardStreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/webStandardStreamableHttp.js'
+
+const transport = new WebStandardStreamableHTTPClientTransport(
+  new URL('http://localhost:3100/mcp')
+)
+
+const client = new Client({ name: 'my-script', version: '1.0.0' }, { capabilities: {} })
+await client.connect(transport)
+
+// Create a new document
+const result = await client.callTool('new_document', {})
+console.log(result)
+
+// Create a rectangle
+await client.callTool('create_shape', {
+  type: 'RECTANGLE',
+  x: 100,
+  y: 100,
+  width: 200,
+  height: 150,
+  name: 'My Rectangle'
+})
+
+// Set fill color
+await client.callTool('set_fill', {
+  id: '<node-id>',
+  color: '#3b82f6'
+})
+
+// Save file
+await client.callTool('save_file', {
+  path: '/path/to/output.fig'
+})
+
+await client.close()
+```
+
+## Troubleshooting
+
+### Port already in use
+
+**Error:** `EADDRINUSE: address already in use`
+
+**Fix:** Change the port or stop the conflicting process:
+
+```bash
+PORT=3200 openpencil-mcp-http
+```
+
+### 401 Unauthorized
+
+**Cause:** Authentication enabled but token not provided or incorrect.
+
+**Fix:** Include the correct token:
+
+```bash
+curl -H "Authorization: Bearer your-token" ...
+```
+
+### Path outside allowed root
+
+**Error:** `Path "..." is outside allowed root "..."`
+
+**Cause:** Attempting to access files outside `OPENPENCIL_MCP_ROOT`.
+
+**Fix:** Set the root to a parent directory:
+
+```bash
+OPENPENCIL_MCP_ROOT=/home/user openpencil-mcp-http
+```
+
+Or use paths within the current root.
+
+### CORS errors in browser
+
+**Error:** `Access-Control-Allow-Origin` missing
+
+**Cause:** CORS not enabled.
+
+**Fix:**
+
+```bash
+OPENPENCIL_MCP_CORS_ORIGIN=https://your-app.com openpencil-mcp-http
+```
+
+### Session state lost
+
+**Cause:** `mcp-session-id` header not included in subsequent requests.
+
+**Fix:** Extract the session ID from the first response and include it in all following requests:
+
+```bash
+SESSION_ID=$(curl -i ... | grep mcp-session-id | cut -d' ' -f2)
+curl -H "mcp-session-id: $SESSION_ID" ...
+```
+
+## Production Deployment
+
+For production use:
+
+1. **Use a reverse proxy** (nginx, Caddy) for TLS termination
+2. **Enable authentication** with a strong token
+3. **Restrict file access** with `OPENPENCIL_MCP_ROOT`
+4. **Bind to localhost** and proxy via reverse proxy, or bind to `0.0.0.0` only on trusted networks
+5. **Monitor logs** for errors and security issues
+6. **Run as a systemd service** or Docker container for automatic restarts
+
+### Example: systemd Service
+
+Create `/etc/systemd/system/openpencil-mcp.service`:
+
+```ini
+[Unit]
+Description=OpenPencil MCP HTTP Server
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/var/www/designs
+Environment="PORT=3100"
+Environment="HOST=127.0.0.1"
+Environment="OPENPENCIL_MCP_ROOT=/var/www/designs"
+Environment="OPENPENCIL_MCP_AUTH_TOKEN=your-secret-token"
+ExecStart=/home/www-data/.bun/bin/openpencil-mcp-http
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start:
+
+```bash
+sudo systemctl enable openpencil-mcp
+sudo systemctl start openpencil-mcp
+```
+
+### Example: nginx Reverse Proxy
+
+```nginx
+server {
+  listen 443 ssl;
+  server_name mcp.example.com;
+
+  ssl_certificate /path/to/cert.pem;
+  ssl_certificate_key /path/to/key.pem;
+
+  location / {
+    proxy_pass http://127.0.0.1:3100;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_buffering off;
+  }
+}
+```
+
+## Next Steps
+
+- [Tools Reference](/mcp/tools-reference) — explore all available tools
+- [Stdio Transport](/mcp/stdio-transport) — alternative for IDE integrations

@@ -1,80 +1,323 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick start
+description: Get started with OpenPencil in minutes
 ---
 
-## Get started in three steps
+This guide will walk you through creating your first design, working with files, and exploring key features.
 
-Get your documentation site running locally and make your first customization.
+## Create your first design
 
-### Step 1: Set up your local environment
+<Steps>
+  <Step title="Open OpenPencil">
+    Launch the desktop app or visit [app.openpencil.dev](https://app.openpencil.dev)
+  </Step>
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+  <Step title="Create a shape">
+    Press **R** to activate the rectangle tool, then click and drag on the canvas to create a rectangle.
+  </Step>
+
+  <Step title="Style the shape">
+    With the rectangle selected:
+    - Change the fill color using the color picker in the right panel
+    - Adjust opacity, stroke, and corner radius
+    - Use the transform controls to resize or rotate
+  </Step>
+
+  <Step title="Draw with the pen tool">
+    Press **P** to activate the pen tool:
+    - Click to create anchor points
+    - Drag to create curves
+    - Hold **Shift** to constrain angles
+    - Press **Enter** to complete the path
+  </Step>
+</Steps>
+
+## Working with text
+
+<Steps>
+  <Step title="Create text">
+    Press **T** for the text tool, then click on the canvas and start typing.
+  </Step>
+
+  <Step title="Style text">
+    Select the text and use the right panel to:
+    - Choose a system font with `queryLocalFonts()` API
+    - Adjust size, weight, line height, and letter spacing
+    - Apply color and effects
+    - Use **Text Resize** to control text box behavior (auto-width, auto-height, or fixed)
+  </Step>
+
+  <Step title="Rich text formatting">
+    Select a text range and apply different styles:
+    - Font family, size, and weight per character
+    - Style runs stored as `{ start, end, ...style }` spans
+  </Step>
+</Steps>
+
+## Auto-layout
+
+Create responsive layouts with Yoga WASM-powered flexbox:
+
+<Steps>
+  <Step title="Select multiple objects">
+    Select two or more shapes by dragging or holding **Shift** and clicking.
+  </Step>
+
+  <Step title="Create auto-layout">
+    Press **Shift+A** or click **Auto-layout** in the right panel.
+  </Step>
+
+  <Step title="Configure layout">
+    Adjust layout properties:
+    - **Direction**: horizontal or vertical
+    - **Alignment**: start, center, end, space-between
+    - **Padding**: inner spacing
+    - **Gap**: spacing between items
+    - **Sizing**: hug contents or fill container
+  </Step>
+
+  <Step title="Nested layouts">
+    Auto-layout frames can be nested. Child frames with auto-layout create complex responsive designs.
+  </Step>
+</Steps>
+
+## Opening and saving files
+
+### Open a .fig file
+
+<Tabs>
+  <Tab title="Desktop app">
+    **File → Open** or drag a `.fig` file onto the app window.
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    Uses the File System Access API (`showOpenFilePicker()`) with fallback to Tauri dialog.
+  </Tab>
+
+  <Tab title="Web version">
+    **File → Open** and select a `.fig` file from your computer.
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    Uses browser File System Access API (Chrome/Edge) with fallback to file input.
+  </Tab>
+</Tabs>
 
-### Step 2: Deploy your changes
+### Save a file
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+**File → Save** exports the current document as a `.fig` file:
+
+- Desktop: Uses Tauri file system commands with Zstd compression
+- Web: Uses File System Access API with fflate compression
+
+The `.fig` file format:
+- ZIP archive containing `canvas.fig` (Kiwi binary) and images
+- Kiwi format: vendored schema from Figma's binary codec
+- Vector data: `vectorNetworkBlob` binary format
+
+<Note>
+Test compatibility by opening your saved `.fig` files in Figma. See [Figma compatibility](/guides/figma-compatibility) for details.
+</Note>
+
+## Copy and paste with Figma
+
+OpenPencil uses the same clipboard format as Figma:
+
+<Steps>
+  <Step title="Copy from Figma">
+    Select nodes in Figma and press **Cmd/Ctrl+C**.
+  </Step>
+
+  <Step title="Paste into OpenPencil">
+    Focus the OpenPencil canvas and press **Cmd/Ctrl+V**.
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    Nodes are decoded from Kiwi binary format and added to your document.
+  </Step>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+  <Step title="Copy from OpenPencil to Figma">
+    Select nodes in OpenPencil, copy (**Cmd/Ctrl+C**), and paste into Figma.
+    
+    Works in both directions with full fidelity for supported node types.
+  </Step>
+</Steps>
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+## Real-time collaboration
 
-### Step 3: Go live
+Share your document and collaborate in real time via P2P WebRTC:
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+<Steps>
+  <Step title="Start sharing">
+    Click the **Share** button in the top-right panel.
+  </Step>
+
+  <Step title="Share the link">
+    Copy the generated link: `app.openpencil.dev/share/<room-id>`
+    
+    Share it with collaborators via any communication channel.
+  </Step>
+
+  <Step title="Collaborate">
+    Collaborators see:
+    - Your cursor and selection in real time
+    - All edits as they happen
+    - Presence indicators with colored avatars
+  </Step>
+
+  <Step title="Follow mode">
+    Click a peer's avatar to follow their viewport. Click again to unfollow.
+  </Step>
+</Steps>
+
+**How it works:**
+- P2P sync via [Trystero](https://github.com/dmotz/trystero) (WebRTC)
+- Document state synced with [Yjs](https://github.com/yjs/yjs) CRDT
+- Local persistence with `y-indexeddb`
+- No server required — peers connect directly
+
+## AI chat
+
+Use AI to generate and modify designs:
+
+<Steps>
+  <Step title="Open chat">
+    Click the **AI** button in the toolbar or press **Cmd/Ctrl+K**.
+  </Step>
+
+  <Step title="Describe what you want">
+    Type a natural language description:
+    
+    "Create a login form with email and password fields"
+    
+    "Make this button rounded with a gradient from purple to blue"
+  </Step>
+
+  <Step title="AI executes tools">
+    The AI uses 75+ built-in tools to:
+    - Create shapes, text, and components
+    - Set fills, strokes, and effects
+    - Modify layout and constraints
+    - Create variables and collections
+  </Step>
+
+  <Step title="Bring your own key">
+    Configure your API key in **Settings**:
+    - OpenAI (GPT-4, GPT-4o)
+    - Anthropic (Claude 3.5 Sonnet)
+    - Google (Gemini Pro)
+    - OpenRouter (any model)
+  </Step>
+</Steps>
+
+## CLI operations
+
+Inspect and manipulate `.fig` files without opening the GUI:
+
+```bash
+# Install CLI
+bunx @open-pencil/cli
+
+# Document info
+bunx @open-pencil/cli info design.fig
+
+# Node tree
+bunx @open-pencil/cli tree design.fig
+
+# Find nodes
+bunx @open-pencil/cli find design.fig --name "Button"
+bunx @open-pencil/cli find design.fig --type TEXT
+
+# Export to image
+bunx @open-pencil/cli export design.fig
+bunx @open-pencil/cli export design.fig -f jpg -s 2 -q 90
+
+# Analyze design tokens
+bunx @open-pencil/cli analyze colors design.fig
+bunx @open-pencil/cli analyze typography design.fig
+```
+
+All commands support `--json` for machine-readable output.
+
+<Card title="CLI reference" icon="terminal" href="/cli/overview">
+  Explore all CLI commands and options
+</Card>
+
+## MCP server
+
+Connect AI coding tools to OpenPencil:
+
+<Tabs>
+  <Tab title="Stdio (Claude Code, Cursor)">
+    ```bash
+    # Install globally
+    bun add -g @open-pencil/mcp
+    ```
+
+    Add to your MCP config (`~/Library/Application Support/Code/User/globalStorage/rooveterinaryinc.roo-cline/settings/cline_mcp_settings.json` for Cursor):
+
+    ```json
+    {
+      "mcpServers": {
+        "open-pencil": {
+          "command": "openpencil-mcp"
+        }
+      }
+    }
+    ```
+  </Tab>
+
+  <Tab title="HTTP (scripts, CI)">
+    ```bash
+    # Start HTTP server
+    openpencil-mcp-http
+    
+    # Configure
+    PORT=3100 OPENPENCIL_MCP_ROOT=/path/to/designs openpencil-mcp-http
+    ```
+
+    Use with any HTTP client:
+    ```bash
+    curl http://localhost:3100/mcp \
+      -H "Content-Type: application/json" \
+      -d '{"method": "list_tools"}'
+    ```
+  </Tab>
+</Tabs>
+
+<Card title="MCP reference" icon="plug" href="/mcp/overview">
+  Set up the MCP server and explore 75+ available tools
+</Card>
+
+## Keyboard shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| **V** | Select tool |
+| **R** | Rectangle |
+| **O** | Ellipse |
+| **L** | Line |
+| **P** | Pen tool |
+| **T** | Text |
+| **F** | Frame |
+| **Cmd/Ctrl+D** | Duplicate |
+| **Cmd/Ctrl+G** | Group |
+| **Cmd/Ctrl+]** | Bring forward |
+| **Cmd/Ctrl+[** | Send backward |
+| **Shift+A** | Auto-layout |
+| **Cmd/Ctrl+K** | AI chat |
+
+<Card title="All shortcuts" icon="keyboard" href="/guides/keyboard-shortcuts">
+  See the complete keyboard shortcuts reference
+</Card>
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
-
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Drawing tools" icon="pen-to-square" href="/features/drawing-tools">
+    Learn about shapes, pen tool, text, and vector networks
+  </Card>
+  <Card title="File format" icon="file-zipper" href="/features/file-format">
+    Understand the .fig file format and Kiwi codec
+  </Card>
+  <Card title="Collaboration" icon="users" href="/features/collaboration">
+    Deep dive into P2P collaboration architecture
+  </Card>
+  <Card title="Components" icon="cube" href="/features/components">
+    Create reusable components with live instance sync
+  </Card>
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

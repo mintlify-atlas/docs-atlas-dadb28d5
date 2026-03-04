@@ -1,0 +1,165 @@
+---
+title: Building the Desktop App
+description: Build instructions for OpenPencil desktop app on macOS, Windows, and Linux
+---
+
+The OpenPencil desktop app is built with Tauri v2. You need Rust, Bun, and platform-specific build tools installed before building.
+
+## Prerequisites
+
+Install the required tools:
+
+1. **Rust** — Install from [rustup.rs](https://rustup.rs/)
+2. **Bun** — JavaScript runtime and package manager
+3. **Platform-specific dependencies** — See [Platform Requirements](/desktop/platform-requirements)
+
+Verify installations:
+
+```sh
+rustc --version
+bun --version
+```
+
+## Development
+
+Run the desktop app in development mode with hot reload:
+
+```sh
+bun run tauri dev
+```
+
+This will:
+
+1. Start the Vite dev server at http://localhost:1420
+2. Compile the Rust backend
+3. Launch the native window with hot reload enabled
+
+Changes to Vue components and TypeScript files trigger instant updates without restarting the app.
+
+## Production Build
+
+Build a production-ready executable:
+
+```sh
+bun run tauri build
+```
+
+This will:
+
+1. Run `bun run build` to create the production frontend bundle
+2. Compile the Rust backend in release mode
+3. Generate a platform-specific installer/package
+
+Build artifacts are saved to `desktop/target/release/bundle/`.
+
+## Platform-Specific Builds
+
+### macOS Universal Binary
+
+Build a universal binary that runs on both Intel and Apple Silicon:
+
+```sh
+bun run tauri build --target universal-apple-darwin
+```
+
+This creates a single `.app` bundle that works on all macOS architectures.
+
+### Windows ARM64
+
+Build for Windows ARM64 devices:
+
+```sh
+bun run tauri build --target aarch64-pc-windows-msvc
+```
+
+Requires the ARM64 Rust toolchain:
+
+```sh
+rustup target add aarch64-pc-windows-msvc
+```
+
+### Linux Cross-Compilation
+
+Cross-compiling to other platforms requires their respective toolchains. For production builds targeting multiple platforms, use CI (GitHub Actions) — see `.github/workflows/build.yml`.
+
+## Build Configuration
+
+Key configuration files:
+
+- `desktop/tauri.conf.json` — Tauri app config (window size, bundle settings, permissions)
+- `desktop/Cargo.toml` — Rust dependencies and binary configuration
+- `desktop/build.rs` — Build-time Rust code generation
+- `package.json` — Scripts for `tauri` CLI commands
+
+## Build Scripts
+
+Available npm scripts (defined in `package.json`):
+
+| Command | Description |
+|---------|-------------|
+| `bun run tauri dev` | Dev mode with hot reload |
+| `bun run tauri build` | Production build |
+| `bun run tauri build --target <target>` | Build for specific target |
+
+## Bundle Output
+
+After building, you'll find:
+
+- **macOS** — `.app` bundle and `.dmg` installer in `desktop/target/release/bundle/macos/` and `desktop/target/release/bundle/dmg/`
+- **Windows** — `.exe` installer and `.msi` in `desktop/target/release/bundle/nsis/` and `desktop/target/release/bundle/msi/`
+- **Linux** — `.deb`, `.AppImage`, and/or `.rpm` in `desktop/target/release/bundle/deb/`, `desktop/target/release/bundle/appimage/`, etc.
+
+## Code Signing
+
+### macOS
+
+The build is configured to use the signing identity specified in `desktop/tauri.conf.json`:
+
+```json
+"macOS": {
+  "signingIdentity": "Developer ID Application: ..."
+}
+```
+
+To sign your own builds, replace with your Apple Developer certificate name or remove for unsigned builds.
+
+### Windows
+
+Windows code signing requires an Azure certificate. Configure via environment variables or Tauri's signing configuration. Unsigned builds will show a Windows Defender SmartScreen warning on first launch.
+
+## CI Builds
+
+The project includes GitHub Actions workflows that build for all platforms:
+
+- Triggered by `v*` tags (e.g., `v0.6.0`)
+- Builds 5 targets: macOS (universal), Windows (x64 + ARM64), Linux (x64)
+- Creates a draft GitHub Release with all binaries
+- Publishes npm packages with provenance
+
+See `AGENTS.md` and `.github/workflows/build.yml` for CI details.
+
+## Troubleshooting
+
+### "Internal error" when saving files
+
+File system permissions are missing or misconfigured. Check `desktop/tauri.conf.json` and ensure the save path is whitelisted.
+
+### Build fails with linker errors
+
+Missing platform dependencies. See [Platform Requirements](/desktop/platform-requirements) and ensure all system libraries are installed.
+
+### WebView2 not found (Windows)
+
+Windows 10 (1803+) and Windows 11 include WebView2 by default. On older systems, download from [Microsoft](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
+
+### Rust toolchain issues
+
+Ensure you're using the correct default toolchain:
+
+```sh
+# macOS/Linux
+rustup default stable
+
+# Windows
+rustup default stable-msvc
+```

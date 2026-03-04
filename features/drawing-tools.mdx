@@ -1,0 +1,404 @@
+---
+title: Drawing Tools
+description: Create and edit design elements with shapes, pen tool, text, auto-layout, and components
+---
+
+OpenPencil provides a complete set of drawing tools for creating UI designs, wireframes, and prototypes. All tools are accessible through keyboard shortcuts and the toolbar.
+
+## Shape Tools
+
+Create basic shapes that form the building blocks of your designs.
+
+### Frame (F)
+
+Frames are container nodes that can hold other elements. Use frames for layouts, cards, screens, and nested structures.
+
+```typescript
+// Create a frame programmatically
+const frame = figma.createFrame()
+frame.x = 100
+frame.y = 100
+frame.resize(320, 480)
+frame.name = "Mobile Screen"
+```
+
+**Properties:**
+- **Clip content**: Controls whether children are clipped to frame bounds (default: off)
+- **Auto-layout**: Convert to flexbox layout with `Shift+A`
+- **Corner radius**: Supports independent corners
+
+<Info>
+Frames clip content off by default in OpenPencil, unlike Figma where it's on by default.
+</Info>
+
+### Rectangle (R)
+
+Solid rectangular shapes with customizable corner radius and fills.
+
+```typescript
+const rect = figma.createRectangle()
+rect.resize(200, 100)
+rect.fills = [{ type: 'SOLID', color: { r: 0.2, g: 0.5, b: 1, a: 1 }, opacity: 1, visible: true }]
+rect.cornerRadius = 8
+```
+
+**Corner radius options:**
+- Uniform: Single value for all corners
+- Independent: Set `topLeftRadius`, `topRightRadius`, `bottomRightRadius`, `bottomLeftRadius`
+
+### Ellipse (E)
+
+Circular and oval shapes.
+
+```typescript
+const circle = figma.createEllipse()
+circle.resize(100, 100) // Perfect circle
+circle.fills = [{ type: 'SOLID', color: { r: 1, g: 0.3, b: 0.3, a: 1 }, opacity: 1, visible: true }]
+```
+
+### Polygon & Star
+
+Create regular polygons and star shapes with configurable point counts.
+
+```typescript
+const star = figma.createStar()
+star.pointCount = 5
+star.starInnerRadius = 0.38 // Ratio of inner to outer radius
+star.resize(80, 80)
+```
+
+**Star properties:**
+- `pointCount`: Number of points (default: 5)
+- `starInnerRadius`: Inner radius ratio (0.0 - 1.0, default: 0.38)
+
+### Line
+
+Straight line segment with stroke styling.
+
+```typescript
+const line = figma.createLine()
+line.resize(200, 0)
+line.strokes = [{
+  color: { r: 0, g: 0, b: 0, a: 1 },
+  weight: 2,
+  opacity: 1,
+  visible: true,
+  align: 'CENTER'
+}]
+```
+
+## Pen Tool (P)
+
+Create custom vector paths with the pen tool. OpenPencil uses **vector networks** — Figma's proprietary vector format that supports branching paths and non-closed regions.
+
+### Vector Networks
+
+Vector networks consist of:
+- **Vertices**: Points with x/y coordinates
+- **Segments**: Bezier curves connecting vertices with tangent handles
+- **Regions**: Filled areas defined by closed loops
+
+```typescript
+import type { VectorNetwork } from '@open-pencil/core'
+
+const vectorNetwork: VectorNetwork = {
+  vertices: [
+    { x: 0, y: 0 },
+    { x: 100, y: 0 },
+    { x: 100, y: 100 },
+    { x: 0, y: 100 }
+  ],
+  segments: [
+    {
+      start: 0,
+      end: 1,
+      tangentStart: { x: 0, y: 0 },
+      tangentEnd: { x: 0, y: 0 }
+    },
+    {
+      start: 1,
+      end: 2,
+      tangentStart: { x: 0, y: 0 },
+      tangentEnd: { x: 0, y: 0 }
+    },
+    {
+      start: 2,
+      end: 3,
+      tangentStart: { x: 0, y: 0 },
+      tangentEnd: { x: 0, y: 0 }
+    },
+    {
+      start: 3,
+      end: 0,
+      tangentStart: { x: 0, y: 0 },
+      tangentEnd: { x: 0, y: 0 }
+    }
+  ],
+  regions: [
+    {
+      windingRule: 'NONZERO',
+      loops: [[0, 1, 2, 3]]
+    }
+  ]
+}
+```
+
+**Vertex properties:**
+- `strokeCap`: 'NONE' | 'ROUND' | 'SQUARE'
+- `strokeJoin`: 'MITER' | 'BEVEL' | 'ROUND'
+- `cornerRadius`: Rounded corners at vertex
+- `handleMirroring`: 'NONE' | 'ANGLE' | 'ANGLE_AND_LENGTH'
+
+### Boolean Operations
+
+Combine vector shapes with boolean operations:
+
+```typescript
+// Union: Combine shapes
+const union = figma.booleanOperation('UNION', [rect1.id, rect2.id])
+
+// Subtract: Cut out second shape from first
+const subtract = figma.booleanOperation('SUBTRACT', [rect1.id, rect2.id])
+
+// Intersect: Keep only overlapping area
+const intersect = figma.booleanOperation('INTERSECT', [rect1.id, rect2.id])
+
+// Exclude: XOR operation
+const exclude = figma.booleanOperation('EXCLUDE', [rect1.id, rect2.id])
+```
+
+## Text Tool (T)
+
+Create rich text with system fonts, styles, and layout controls.
+
+### Basic Text
+
+```typescript
+const text = figma.createText()
+text.characters = "Hello, World!"
+text.fontSize = 18
+text.fontFamily = 'Inter'
+text.fontWeight = 600
+text.fills = [{ type: 'SOLID', color: { r: 0, g: 0, b: 0, a: 1 }, opacity: 1, visible: true }]
+```
+
+### Text Styling
+
+**Font properties:**
+- `fontFamily`: Font name from system fonts
+- `fontSize`: Point size
+- `fontWeight`: 100-900 (Thin to Black)
+- `italic`: Boolean flag
+- `letterSpacing`: Additional spacing in pixels
+- `lineHeight`: Line height (number in pixels or null for auto)
+
+**Alignment:**
+- `textAlignHorizontal`: 'LEFT' | 'CENTER' | 'RIGHT' | 'JUSTIFIED'
+- `textAlignVertical`: 'TOP' | 'CENTER' | 'BOTTOM'
+
+**Text effects:**
+- `textCase`: 'ORIGINAL' | 'UPPER' | 'LOWER' | 'TITLE'
+- `textDecoration`: 'NONE' | 'UNDERLINE' | 'STRIKETHROUGH'
+
+### Auto-resize
+
+Control how text boxes resize:
+
+```typescript
+// Auto width and height
+text.textAutoResize = 'WIDTH_AND_HEIGHT'
+
+// Auto height only (fixed width)
+text.textAutoResize = 'HEIGHT'
+
+// Fixed size with truncation
+text.textAutoResize = 'TRUNCATE'
+```
+
+### Style Runs
+
+Apply different styles to text ranges:
+
+```typescript
+interface StyleRun {
+  start: number
+  length: number
+  style: {
+    fontWeight?: number
+    italic?: boolean
+    textDecoration?: 'NONE' | 'UNDERLINE' | 'STRIKETHROUGH'
+    fontSize?: number
+    fontFamily?: string
+    letterSpacing?: number
+    lineHeight?: number | null
+  }
+}
+
+text.styleRuns = [
+  {
+    start: 0,
+    length: 5,
+    style: { fontWeight: 700 } // Bold first 5 characters
+  }
+]
+```
+
+## Auto-Layout (Shift+A)
+
+Convert frames to flexbox layouts with gap, padding, and alignment controls. Uses Yoga WASM for layout computation.
+
+### Creating Auto-Layout
+
+```typescript
+const frame = figma.createFrame()
+frame.layoutMode = 'VERTICAL' // or 'HORIZONTAL'
+frame.itemSpacing = 16 // Gap between items
+frame.paddingTop = 24
+frame.paddingRight = 24
+frame.paddingBottom = 24
+frame.paddingLeft = 24
+```
+
+### Layout Properties
+
+**Direction:**
+- `layoutMode`: 'NONE' | 'HORIZONTAL' | 'VERTICAL'
+
+**Alignment:**
+- `primaryAxisAlign`: 'MIN' | 'CENTER' | 'MAX' | 'SPACE_BETWEEN'
+- `counterAxisAlign`: 'MIN' | 'CENTER' | 'MAX' | 'STRETCH'
+
+**Sizing:**
+- `primaryAxisSizing`: 'FIXED' | 'HUG' | 'FILL'
+- `counterAxisSizing`: 'FIXED' | 'HUG' | 'FILL'
+
+**Spacing:**
+- `itemSpacing`: Gap between items (primary axis)
+- `counterAxisSpacing`: Gap between rows/columns (when wrapped)
+
+**Padding:**
+- `paddingTop`, `paddingRight`, `paddingBottom`, `paddingLeft`
+
+### Child Layout Properties
+
+Control how children behave in auto-layout:
+
+```typescript
+// Child node properties
+child.layoutPositioning = 'AUTO' // or 'ABSOLUTE' for absolute positioning
+child.layoutGrow = 1 // Flex grow factor
+child.layoutAlignSelf = 'STRETCH' // or 'AUTO'
+```
+
+### Min/Max Constraints
+
+```typescript
+frame.minWidth = 200
+frame.maxWidth = 600
+frame.minHeight = 100
+frame.maxHeight = 400
+```
+
+<Warning>
+Call `graph.computeAllLayouts()` after creating auto-layout to update layout bounds immediately.
+</Warning>
+
+## Sections
+
+Organize large canvases with labeled sections.
+
+```typescript
+const section = figma.createSection()
+section.x = 0
+section.y = 0
+section.resize(1200, 800)
+section.name = "Homepage Designs"
+```
+
+**Rendering:**
+- Section title rendered at top with colored background
+- Corner radius: `SECTION_CORNER_RADIUS` (5px)
+- Title height: `SECTION_TITLE_HEIGHT` (24px)
+- Title font size: `SECTION_TITLE_FONT_SIZE` (12px)
+
+## Groups (Cmd+G)
+
+Group multiple nodes without affecting their positions.
+
+```typescript
+const group = figma.group([node1, node2, node3], parentFrame)
+```
+
+**Behavior:**
+- Groups don't have fills or strokes
+- Children positions are relative to group origin
+- Creating a group preserves children's absolute positions
+
+## Implementation Details
+
+### Scene Graph
+
+All nodes are stored in a flat `Map<string, SceneNode>` with parent-child relationships tracked via `parentId` and `childIds`:
+
+```typescript
+export class SceneGraph {
+  nodes = new Map<string, SceneNode>()
+  rootId: string
+
+  createNode(type: NodeType, parentId: string, overrides: Partial<SceneNode> = {}): SceneNode {
+    const node = createDefaultNode(type, overrides)
+    node.parentId = parentId
+    this.nodes.set(node.id, node)
+
+    const parent = this.nodes.get(parentId)
+    if (parent) {
+      parent.childIds.push(node.id)
+    }
+
+    return node
+  }
+}
+```
+
+From `packages/core/src/scene-graph.ts:655-666`
+
+### Rendering
+
+OpenPencil uses Skia (CanvasKit WASM) for rendering. All shapes are rendered to a WebGL canvas, not DOM elements.
+
+**Key constants** from `packages/core/src/constants.ts`:
+- `PEN_HANDLE_RADIUS`: 3px
+- `PEN_VERTEX_RADIUS`: 4px
+- `DEFAULT_FONT_FAMILY`: 'Inter'
+- `DEFAULT_FONT_SIZE`: 14
+- `SELECTION_COLOR`: `{ r: 0.23, g: 0.51, b: 0.96, a: 1 }`
+
+### Layout Engine
+
+Auto-layout uses Yoga WASM for flexbox computation. After modifying layout properties, call:
+
+```typescript
+import { computeAllLayouts } from '@open-pencil/core'
+
+computeAllLayouts(graph)
+```
+
+## Keyboard Shortcuts
+
+| Shortcut | Tool |
+|----------|------|
+| `F` | Frame |
+| `R` | Rectangle |
+| `E` | Ellipse |
+| `T` | Text |
+| `P` | Pen |
+| `L` | Line |
+| `Shift+A` | Toggle auto-layout |
+| `Cmd+G` | Group selection |
+| `Cmd+Shift+G` | Ungroup |
+
+## See Also
+
+- [Components](/features/components) - Reusable design elements
+- [AI Chat](/features/ai-chat) - Create designs with natural language
+- [File Format](/features/file-format) - Understanding .fig files

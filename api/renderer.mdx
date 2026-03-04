@@ -1,0 +1,351 @@
+---
+title: SkiaRenderer API
+description: CanvasKit-based scene renderer with viewport culling and picture caching
+---
+
+# SkiaRenderer API
+
+CanvasKit (Skia WASM) renderer for OpenPencil. Renders scene graph to WebGL surface with viewport culling, picture caching, and UI overlays.
+
+## Import
+
+```typescript
+import { SkiaRenderer } from '@open-pencil/core'
+import type { RenderOverlays } from '@open-pencil/core'
+import { getCanvasKit } from '@open-pencil/core'
+```
+
+## Constructor
+
+```typescript
+const ck = await getCanvasKit()
+const surface = ck.MakeWebGLCanvasSurface(canvas)!
+const renderer = new SkiaRenderer(ck, surface)
+```
+
+Creates a new renderer instance. Requires a CanvasKit instance and a WebGL surface.
+
+## Viewport Properties
+
+### `panX`, `panY`
+
+```typescript
+panX: number
+panY: number
+```
+
+Pan offset in screen pixels.
+
+### `zoom`
+
+```typescript
+zoom: number
+```
+
+Zoom level (1.0 = 100%).
+
+### `dpr`
+
+```typescript
+dpr: number
+```
+
+Device pixel ratio (for retina displays).
+
+### `viewportWidth`, `viewportHeight`
+
+```typescript
+viewportWidth: number
+viewportHeight: number
+```
+
+Canvas size in CSS pixels.
+
+### `pageId`
+
+```typescript
+pageId: string | null
+```
+
+Current page to render.
+
+### `pageColor`
+
+```typescript
+pageColor: Color
+```
+
+Canvas background color.
+
+### `showRulers`
+
+```typescript
+showRulers: boolean
+```
+
+Whether to render rulers (default: `true`).
+
+## Rendering
+
+### `render()`
+
+```typescript
+render(
+  graph: SceneGraph,
+  selectedIds: Set<string>,
+  overlays?: RenderOverlays,
+  sceneVersion?: number
+): void
+```
+
+Renders the scene to the canvas. Uses picture caching when `sceneVersion` matches.
+
+```typescript
+renderer.panX = 100
+renderer.panY = 50
+renderer.zoom = 1.5
+renderer.pageId = page.id
+
+renderer.render(graph, new Set([rect.id]), {
+  hoveredNodeId: hoveredId,
+  snapGuides: [{ axis: 'x', position: 100, from: 0, to: 500 }]
+}, sceneVersion)
+```
+
+**Overlays:**
+
+```typescript
+interface RenderOverlays {
+  hoveredNodeId?: string | null
+  editingTextId?: string | null
+  textEditor?: TextEditor | null
+  marquee?: Rect | null
+  snapGuides?: SnapGuide[]
+  rotationPreview?: { nodeId: string; angle: number } | null
+  dropTargetId?: string | null
+  layoutInsertIndicator?: {
+    x: number
+    y: number
+    length: number
+    direction: 'HORIZONTAL' | 'VERTICAL'
+  } | null
+  penState?: PenState | null
+  remoteCursors?: Array<{
+    name: string
+    color: Color
+    x: number
+    y: number
+    selection?: string[]
+  }>
+}
+```
+
+### `renderSceneToCanvas()`
+
+```typescript
+renderSceneToCanvas(canvas: Canvas, graph: SceneGraph, pageId: string): void
+```
+
+Renders scene to a CanvasKit canvas (for export). Disables culling to render everything.
+
+```typescript
+const recorder = new ck.PictureRecorder()
+const bounds = ck.LTRBRect(0, 0, 1000, 1000)
+const canvas = recorder.beginRecording(bounds)
+renderer.renderSceneToCanvas(canvas, graph, pageId)
+const picture = recorder.finishRecordingAsPicture()
+```
+
+## Font Management
+
+### `loadFonts()`
+
+```typescript
+async loadFonts(): Promise<void>
+```
+
+Loads default font (Inter Regular) and initializes font provider. Call once after creating the renderer.
+
+```typescript
+await renderer.loadFonts()
+```
+
+### `getFontProvider()`
+
+```typescript
+getFontProvider(): TypefaceFontProvider | null
+```
+
+Returns the CanvasKit font provider (for registering custom fonts).
+
+## Surface Management
+
+### `replaceSurface()`
+
+```typescript
+replaceSurface(surface: Surface): void
+```
+
+Replaces the WebGL surface (e.g., after canvas resize). Deletes old surface and invalidates picture cache.
+
+```typescript
+const newSurface = ck.MakeWebGLCanvasSurface(canvas)!
+renderer.replaceSurface(newSurface)
+```
+
+## Picture Caching
+
+Renderer pre-renders nodes with effects/shadows to `SkPicture` objects for faster repaints.
+
+### `invalidateScenePicture()`
+
+```typescript
+invalidateScenePicture(): void
+```
+
+Invalidates the cached scene picture (forces re-render on next `render()` call).
+
+### `invalidateAllPictures()`
+
+```typescript
+invalidateAllPictures(): void
+```
+
+Invalidates all cached pictures (scene + per-node).
+
+### `invalidateNodePicture()`
+
+```typescript
+invalidateNodePicture(nodeId: string): void
+```
+
+Invalidates cached picture for a specific node (e.g., after changing effects).
+
+### `invalidateVectorPath()`
+
+```typescript
+invalidateVectorPath(nodeId: string): void
+```
+
+Invalidates cached CanvasKit path for a vector node (call after modifying `vectorNetwork`).
+
+## Hit Testing
+
+### `hitTestSectionTitle()`
+
+```typescript
+hitTestSectionTitle(
+  graph: SceneGraph,
+  canvasX: number,
+  canvasY: number
+): SceneNode | null
+```
+
+Tests if canvas coordinates hit a section title pill (for dragging sections).
+
+### `hitTestComponentLabel()`
+
+```typescript
+hitTestComponentLabel(
+  graph: SceneGraph,
+  canvasX: number,
+  canvasY: number
+): SceneNode | null
+```
+
+Tests if canvas coordinates hit a component label (for selecting components).
+
+## Viewport Culling
+
+Renderer skips rendering nodes outside the visible viewport. Culling logic:
+
+- Leaf nodes: always culled if outside viewport
+- Clipped containers: culled if outside viewport
+- Unclipped containers: never culled (children may extend beyond bounds)
+- Rotated nodes: expand bounds to diagonal for culling
+
+Culling is disabled for `renderSceneToCanvas()` (export).
+
+## Rendering Pipeline
+
+1. **Scene layer** (world coordinates):
+   - Apply pan/zoom transform
+   - Render nodes from page's children
+   - Use picture cache if scene hasn't changed
+
+2. **Section titles + component labels** (screen coordinates):
+   - Zoom-independent text rendering
+   - Ellipsize long names to fit available width
+
+3. **UI overlays** (screen coordinates):
+   - Selection bounds with handles
+   - Rotation handle
+   - Snap guides
+   - Marquee selection
+   - Layout insert indicator
+   - Remote cursors
+   - Rulers (horizontal + vertical)
+
+## Performance
+
+- **Picture caching**: Scene is pre-rendered to `SkPicture` when `sceneVersion` is stable. Pan/zoom/hover don't invalidate cache.
+- **Per-node caching**: Nodes with effects (shadows, blur) are cached individually.
+- **Viewport culling**: Nodes outside the viewport are skipped entirely.
+- **Shader caching**: Gradients and image filters are cached in `Map<string, Shader>`.
+
+## Example: Full Rendering Setup
+
+```typescript
+import { SceneGraph, SkiaRenderer, getCanvasKit } from '@open-pencil/core'
+
+const canvas = document.getElementById('canvas') as HTMLCanvasElement
+const ck = await getCanvasKit()
+
+// Create surface
+let surface = ck.MakeWebGLCanvasSurface(canvas)!
+const renderer = new SkiaRenderer(ck, surface)
+await renderer.loadFonts()
+
+// Setup scene
+const graph = new SceneGraph()
+const page = graph.getPages()[0]
+renderer.pageId = page.id
+
+// Handle resize
+const onResize = () => {
+  const dpr = window.devicePixelRatio
+  canvas.width = canvas.clientWidth * dpr
+  canvas.height = canvas.clientHeight * dpr
+  renderer.dpr = dpr
+  renderer.viewportWidth = canvas.clientWidth
+  renderer.viewportHeight = canvas.clientHeight
+  surface.delete()
+  surface = ck.MakeWebGLCanvasSurface(canvas)!
+  renderer.replaceSurface(surface)
+}
+window.addEventListener('resize', onResize)
+onResize()
+
+// Render loop
+let sceneVersion = 0
+const render = () => {
+  renderer.render(graph, selectedIds, overlays, sceneVersion)
+  requestAnimationFrame(render)
+}
+render()
+
+// On scene mutations
+graph.updateNode(nodeId, { width: 200 })
+sceneVersion++
+```
+
+## Constants
+
+Renderer uses constants from `@open-pencil/core/constants`:
+
+- `SELECTION_COLOR`, `COMPONENT_COLOR`, `SNAP_COLOR`
+- `ROTATION_HANDLE_OFFSET`, `ROTATION_HANDLE_RADIUS`
+- `RULER_SIZE`, `RULER_BG_COLOR`, `RULER_TEXT_COLOR`
+- `HANDLE_HALF_SIZE` (selection handle size)
+- `LABEL_FONT_SIZE`, `SIZE_FONT_SIZE`
+- `SECTION_TITLE_HEIGHT`, `COMPONENT_LABEL_FONT_SIZE`

@@ -1,0 +1,513 @@
+---
+title: Real-Time Collaboration
+description: P2P multiplayer editing with WebRTC, Yjs CRDT, and local persistence
+---
+
+OpenPencil supports real-time collaboration without requiring a server. Multiple users can edit the same document simultaneously with live cursor tracking, selection awareness, and automatic conflict resolution.
+
+## Architecture
+
+Collaboration uses a **peer-to-peer (P2P)** architecture:
+
+- **Trystero**: WebRTC signaling via MQTT public brokers
+- **Yjs**: CRDT (Conflict-free Replicated Data Type) for document state
+- **y-indexeddb**: Local persistence (survives page refresh)
+- **Awareness Protocol**: Cursor positions and selection state
+
+From `AGENTS.md:99-108`:
+
+> - P2P via Trystero (WebRTC) — no server relay. Signaling over MQTT public brokers.
+> - Yjs CRDT for document state sync. Awareness protocol for cursors/selections/presence.
+> - y-indexeddb for local persistence — room survives page refresh.
+> - Constants in `src/constants.ts`: `TRYSTERO_APP_ID`, `PEER_COLORS`, `ROOM_ID_LENGTH`, `ROOM_ID_CHARS`, `YJS_JSON_FIELDS`
+> - `src/composables/use-collab.ts` — composable: connect/disconnect, cursor/selection broadcasting, follow mode, Yjs ↔ SceneGraph sync
+> - Provided via `COLLAB_KEY` injection — `useCollabInjected()` in child components
+> - ICE servers: Google STUN + Cloudflare STUN + Open Relay TURN (TCP + UDP)
+> - Room IDs use `crypto.getRandomValues()` — no `Math.random()` anywhere in codebase
+> - Stale cursors cleaned on peer disconnect via `removeAwarenessStates()`
+
+## How It Works
+
+### 1. Create a Room
+
+Click the share button to generate a room link:
+
+```typescript
+function shareCurrentDoc(): string {
+  const roomId = generateRoomId()  // Crypto-random 16-char ID
+  connect(roomId)
+  syncAllNodesToYjs()
+  return roomId
+}
+
+function generateRoomId(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(ROOM_ID_LENGTH))
+  let result = ''
+  for (let i = 0; i < ROOM_ID_LENGTH; i++) {
+    result += ROOM_ID_CHARS[bytes[i] % ROOM_ID_CHARS.length]
+  }
+  return result
+}
+```
+
+From `src/composables/use-collab.ts:384-398`
+
+Room IDs are **cryptographically random** using `crypto.getRandomValues()`, not `Math.random()`.
+
+### 2. Join a Room
+
+Share the generated link (`app.openpencil.dev/share/<room-id>`) with collaborators.
+
+```typescript
+function joinRoom(roomId: string) {
+  connect(roomId)
+}
+```
+
+From `src/composables/use-collab.ts:400-402`
+
+### 3. WebRTC Connection
+
+Trystero establishes P2P connections using public STUN/TURN servers:
+
+```typescript
+room = joinTrysteroRoom(
+  {
+    appId: TRYSTERO_APP_ID,
+    rtcConfig: {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun.cloudflare.com:3478' },
+        {
+          urls: 'turn:openrelay.metered.ca:443',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        },
+        {
+          urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        }
+      ]
+    }
+  },
+  roomId
+)
+```
+
+From `src/composables/use-collab.ts:84-105`
+
+**ICE servers:**
+- **STUN**: Google and Cloudflare (NAT traversal)
+- **TURN**: Open Relay TCP/UDP (relay fallback for restrictive networks)
+
+### 4. Document Sync
+
+Yjs syncs the scene graph using a CRDT:
+
+```typescript
+ydoc = new Y.Doc()
+ynodes = ydoc.getMap('nodes')  // Shared node map
+
+// Sync changes: SceneGraph → Yjs
+function syncNodeToYjs(nodeId: string) {
+  const node = store.graph.getNode(nodeId)
+  if (!node) return
+
+  ydoc.transact(() => {
+    let ynode = ynodes.get(nodeId)
+    if (!ynode) {
+      ynode = new Y.Map()
+      ynodes.set(nodeId, ynode)
+    }
+    syncNodePropsToYMap(node, ynode)
+  })
+}
+
+function syncNodePropsToYMap(node: SceneNode, ynode: Y.Map<unknown>) {
+  for (const [key, value] of Object.entries(node)) {
+    if (typeof value === 'object' && value !== null) {
+      ynode.set(key, JSON.stringify(value))  // Serialize objects
+    } else {
+      ynode.set(key, value)
+    }
+  }
+}
+```
+
+From `src/composables/use-collab.ts:225-250`
+
+**JSON fields** (serialized as strings):
+
+```typescript
+export const YJS_JSON_FIELDS = new Set([
+  'fills',
+  'strokes',
+  'effects',
+  'vectorNetwork',
+  'styleRuns',
+  'boundVariables'
+])
+```
+
+### 5. Remote Changes
+
+Apply remote updates from Yjs to the scene graph:
+
+```typescript
+ynodes.observeDeep((events) => {
+  if (suppressYjsEvents) return
+  suppressGraphEvents = true
+  try {
+    applyYjsToGraph(events)
+  } finally {
+    suppressGraphEvents = false
+  }
+  store.requestRender()
+})
+
+function applyYjsToGraph(events: Y.YEvent<Y.Map<unknown>>[]) {
+  for (const event of events) {
+    if (event.target === ynodes) {
+      for (const [key, change] of event.changes.keys) {
+        if (change.action === 'add') {
+          const ynode = ynodes.get(key)
+          if (ynode) applyYnodeToGraph(key, ynode)
+        } else if (change.action === 'delete') {
+          store.graph.deleteNode(key)
+        }
+      }
+    }
+  }
+}
+```
+
+From `src/composables/use-collab.ts:73-86` and `268-287`
+
+## Awareness: Cursors & Selection
+
+### Broadcasting Presence
+
+```typescript
+awareness = new awarenessProtocol.Awareness(ydoc)
+
+// Set local user info
+function broadcastAwareness() {
+  awareness.setLocalStateField('user', {
+    name: state.value.localName,
+    color: state.value.localColor
+  })
+}
+
+// Update cursor position
+function updateCursor(x: number, y: number, pageId: string) {
+  awareness.setLocalStateField('cursor', { 
+    x, y, pageId, zoom: store.state.zoom 
+  })
+}
+
+// Update selection
+function updateSelection(ids: string[]) {
+  awareness.setLocalStateField('selection', ids)
+}
+```
+
+From `src/composables/use-collab.ts:327-343`
+
+### Remote Cursor Rendering
+
+Remote cursors are rendered on the canvas as Figma-style colored arrows with name pills:
+
+```typescript
+export interface RemotePeer {
+  clientId: number
+  name: string
+  color: Color
+  cursor?: { x: number; y: number; pageId: string }
+  selection?: string[]
+}
+
+function updatePeersList() {
+  const states = awareness.getStates()
+  const peers: RemotePeer[] = []
+  const currentPageId = store.state.currentPageId
+
+  states.forEach((peerState, clientId) => {
+    if (clientId === awareness.clientID) return
+    const user = peerState.user
+    if (!user) return
+    
+    peers.push({
+      clientId,
+      name: user.name || 'Anonymous',
+      color: user.color || PEER_COLORS[clientId % PEER_COLORS.length],
+      cursor: peerState.cursor,
+      selection: peerState.selection
+    })
+  })
+
+  // Filter to current page
+  store.state.remoteCursors = peers
+    .filter((p) => p.cursor && p.cursor.pageId === currentPageId)
+    .map((p) => ({
+      name: p.name,
+      color: p.color,
+      x: p.cursor!.x,
+      y: p.cursor!.y,
+      selection: p.selection
+    }))
+}
+```
+
+From `src/composables/use-collab.ts:20-26` and `345-375`
+
+**Peer colors:**
+
+```typescript
+export const PEER_COLORS: Color[] = [
+  { r: 0.2, g: 0.6, b: 1.0, a: 1 },    // Blue
+  { r: 1.0, g: 0.4, b: 0.4, a: 1 },    // Red
+  { r: 0.3, g: 0.8, b: 0.5, a: 1 },    // Green
+  { r: 0.9, g: 0.6, b: 0.2, a: 1 },    // Orange
+  { r: 0.7, g: 0.3, b: 0.9, a: 1 },    // Purple
+]
+```
+
+## Follow Mode
+
+Click a peer's avatar to follow their viewport:
+
+```typescript
+const followingPeer = ref<number | null>(null)
+
+function followPeer(clientId: number | null) {
+  followingPeer.value = clientId
+}
+
+function tickFollow() {
+  if (!followingPeer.value || !awareness) return
+  const peerState = awareness.getStates().get(followingPeer.value)
+  if (!peerState?.cursor) {
+    followingPeer.value = null
+    return
+  }
+  
+  const cursor = peerState.cursor
+  
+  // Switch page if needed
+  if (cursor.pageId !== store.state.currentPageId) {
+    store.switchPage(cursor.pageId)
+  }
+  
+  // Center viewport on cursor
+  const canvas = document.querySelector('canvas')
+  if (!canvas) return
+  if (cursor.zoom) store.state.zoom = cursor.zoom
+  
+  const cw = canvas.width / devicePixelRatio
+  const ch = canvas.height / devicePixelRatio
+  store.state.panX = cw / 2 - cursor.x * store.state.zoom
+  store.state.panY = ch / 2 - cursor.y * store.state.zoom
+  store.requestRender()
+}
+```
+
+From `src/composables/use-collab.ts:404-429`
+
+Follow mode updates continuously via the awareness protocol's `change` event.
+
+## Local Persistence
+
+Documents persist locally using IndexedDB:
+
+```typescript
+import { IndexeddbPersistence } from 'y-indexeddb'
+
+persistence = new IndexeddbPersistence(`op-room-${roomId}`, ydoc)
+```
+
+From `src/composables/use-collab.ts:66`
+
+**Benefits:**
+- Refreshing the page preserves your work
+- Offline editing (syncs when peers reconnect)
+- No server storage required
+
+## Conflict Resolution
+
+Yjs CRDT automatically resolves conflicts:
+
+- **Last-write-wins** for primitive values
+- **Merges** for arrays and maps
+- **Tombstones** track deletions
+- **Causal ordering** via vector clocks
+
+**Example:** Two users edit the same node simultaneously:
+
+```typescript
+// User A changes fill color
+node.fills = [{ type: 'SOLID', color: red }]
+
+// User B changes opacity (same node)
+node.opacity = 0.5
+
+// Result: Both changes applied
+node.fills = [{ type: 'SOLID', color: red }]
+node.opacity = 0.5
+```
+
+## Peer Lifecycle
+
+### Peer Join
+
+```typescript
+room.onPeerJoin((peerId) => {
+  state.value.connected = true
+  
+  // Send full state vector
+  const sv = Y.encodeStateVector(ydoc)
+  sendSyncStep1(sv, peerId)
+
+  // Send awareness state
+  const encodedUpdate = awarenessProtocol.encodeAwarenessUpdate(
+    awareness,
+    [awareness.clientID]
+  )
+  sendAwareness(encodedUpdate, peerId)
+})
+```
+
+From `src/composables/use-collab.ts:152-163`
+
+### Peer Leave
+
+Clean up stale cursors:
+
+```typescript
+room.onPeerLeave(() => {
+  if (awareness) {
+    const remoteClients = [...awareness.getStates().keys()].filter(
+      (id) => id !== awareness.clientID
+    )
+    awarenessProtocol.removeAwarenessStates(awareness, remoteClients, 'peer-left')
+  }
+  updatePeersList()
+})
+```
+
+From `src/composables/use-collab.ts:165-173`
+
+## Disconnect
+
+```typescript
+function disconnect() {
+  room?.leave()
+  room = null
+  
+  if (awareness) {
+    awareness.destroy()
+    awareness = null
+  }
+  if (persistence) {
+    persistence.destroy()
+    persistence = null
+  }
+  if (ydoc) {
+    ydoc.destroy()
+    ydoc = null
+  }
+  
+  state.value.connected = false
+  state.value.roomId = null
+  state.value.peers = []
+  store.state.remoteCursors = []
+}
+```
+
+From `src/composables/use-collab.ts:198-223`
+
+## Usage Example
+
+```typescript
+import { useCollab } from '@/composables/use-collab'
+import { useEditorStore } from '@/stores/editor'
+
+const store = useEditorStore()
+const collab = useCollab(store)
+
+// Share document
+const roomId = collab.shareCurrentDoc()
+const shareUrl = `https://app.openpencil.dev/share/${roomId}`
+console.log('Share this link:', shareUrl)
+
+// Join existing room
+collab.connect('abc123xyz456')
+
+// Set display name
+collab.setLocalName('Alice')
+
+// Update cursor (call on mousemove)
+collab.updateCursor(100, 200, currentPageId)
+
+// Update selection (call on selection change)
+collab.updateSelection(['node-1', 'node-2'])
+
+// Follow a peer
+collab.followPeer(peerClientId)
+
+// Stop following
+collab.followPeer(null)
+
+// Disconnect
+collab.disconnect()
+```
+
+## Implementation Notes
+
+### Event Suppression
+
+Prevent infinite loops when syncing:
+
+```typescript
+let suppressGraphEvents = false  // Suppress SceneGraph → Yjs
+let suppressYjsEvents = false    // Suppress Yjs → SceneGraph
+
+// Patch graph.updateNode to sync changes
+const origUpdateNode = store.graph.updateNode.bind(store.graph)
+store.graph.updateNode = (id: string, changes: Partial<SceneNode>) => {
+  origUpdateNode(id, changes)
+  if (!suppressGraphEvents && ydoc && ynodes) {
+    syncNodeToYjs(id)
+  }
+}
+```
+
+From `src/composables/use-collab.ts:50-51` and `189-196`
+
+### Constants
+
+```typescript
+// Room ID generation
+export const ROOM_ID_LENGTH = 16
+export const ROOM_ID_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789'
+
+// Trystero config
+export const TRYSTERO_APP_ID = 'openpencil-v1'
+```
+
+## Security Considerations
+
+<Warning>
+Room IDs are the only authentication. Anyone with the link can join and edit. Do not share sensitive documents via public links.
+</Warning>
+
+**Future improvements:**
+- Optional password protection
+- Read-only access mode
+- Persistent room ownership
+
+## See Also
+
+- [File Format](/features/file-format) - How changes are encoded
+- [Components](/features/components) - Component sync across peers
+- [AI Chat](/features/ai-chat) - Collaborative AI editing

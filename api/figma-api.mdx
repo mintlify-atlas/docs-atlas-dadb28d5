@@ -1,0 +1,630 @@
+---
+title: FigmaAPI
+description: Figma Plugin API-compatible interface for scripting and tools
+---
+
+# FigmaAPI
+
+Figma Plugin API-compatible interface for scripting and tools. Wraps `SceneGraph` with a proxy-based API matching `figma.*` global.
+
+## Import
+
+```typescript
+import { FigmaAPI, FigmaNodeProxy } from '@open-pencil/core'
+import type { FigmaFontName } from '@open-pencil/core'
+```
+
+## Constructor
+
+```typescript
+const figma = new FigmaAPI(graph)
+```
+
+Creates a new API instance wrapping a `SceneGraph`.
+
+## Current Page
+
+### `currentPage`
+
+```typescript
+get currentPage(): FigmaNodeProxy & { selection: FigmaNodeProxy[] }
+set currentPage(page: FigmaNodeProxy)
+```
+
+Returns the current page. Pages have a `selection` property.
+
+```typescript
+const page = figma.currentPage
+console.log(page.name) // "Page 1"
+console.log(page.selection) // [node1, node2]
+page.selection = [rect, text]
+```
+
+### `root`
+
+```typescript
+get root(): FigmaNodeProxy
+```
+
+Returns the root document node.
+
+```typescript
+const root = figma.root
+for (const page of root.children) {
+  console.log(page.name)
+}
+```
+
+## Node Creation
+
+### `createFrame()`
+
+```typescript
+createFrame(): FigmaNodeProxy
+```
+
+Creates a frame on the current page.
+
+```typescript
+const frame = figma.createFrame()
+frame.resize(200, 100)
+frame.x = 100
+frame.y = 100
+frame.fills = [{ type: 'SOLID', color: { r: 0.9, g: 0.9, b: 0.9 }, opacity: 1, visible: true }]
+```
+
+### `createRectangle()`
+
+```typescript
+createRectangle(): FigmaNodeProxy
+```
+
+```typescript
+const rect = figma.createRectangle()
+rect.resize(100, 100)
+rect.cornerRadius = 8
+rect.fills = [{ type: 'SOLID', color: { r: 0.2, g: 0.4, b: 0.8 }, opacity: 1, visible: true }]
+figma.currentPage.appendChild(rect)
+```
+
+### `createEllipse()`
+
+```typescript
+createEllipse(): FigmaNodeProxy
+```
+
+### `createText()`
+
+```typescript
+createText(): FigmaNodeProxy
+```
+
+```typescript
+const text = figma.createText()
+text.characters = 'Hello World'
+text.fontSize = 24
+text.fontName = { family: 'Inter', style: 'Bold' }
+text.fills = [{ type: 'SOLID', color: { r: 0, g: 0, b: 0 }, opacity: 1, visible: true }]
+figma.currentPage.appendChild(text)
+```
+
+### Other Node Types
+
+```typescript
+createLine(): FigmaNodeProxy
+createPolygon(): FigmaNodeProxy
+createStar(): FigmaNodeProxy
+createVector(): FigmaNodeProxy
+createComponent(): FigmaNodeProxy
+createSection(): FigmaNodeProxy
+createPage(): FigmaNodeProxy
+```
+
+## Node Lookup
+
+### `getNodeById()`
+
+```typescript
+getNodeById(id: string): FigmaNodeProxy | null
+```
+
+Returns node by ID.
+
+```typescript
+const node = figma.getNodeById('0:42')
+if (node) {
+  node.name = 'Updated'
+}
+```
+
+## Grouping
+
+### `group()`
+
+```typescript
+group(nodes: FigmaNodeProxy[], parent: FigmaNodeProxy): FigmaNodeProxy
+```
+
+Groups nodes under a new `GROUP` node.
+
+```typescript
+const rect1 = figma.createRectangle()
+const rect2 = figma.createRectangle()
+const group = figma.group([rect1, rect2], figma.currentPage)
+group.name = 'Shapes'
+```
+
+### `ungroup()`
+
+```typescript
+ungroup(node: FigmaNodeProxy): void
+```
+
+Ungroups a `GROUP` node (moves children to parent, deletes group).
+
+```typescript
+figma.ungroup(group)
+```
+
+## Components
+
+### `createComponentFromNode()`
+
+```typescript
+createComponentFromNode(node: FigmaNodeProxy): FigmaNodeProxy
+```
+
+Converts a node to a component.
+
+```typescript
+const frame = figma.createFrame()
+// ... configure frame ...
+const component = figma.createComponentFromNode(frame)
+component.name = 'Button'
+```
+
+### Creating Instances
+
+```typescript
+const instance = component.createInstance()
+instance.x = 300
+figma.currentPage.appendChild(instance)
+```
+
+### `mainComponent`
+
+```typescript
+get mainComponent(): FigmaNodeProxy | null
+```
+
+Returns the component for an instance.
+
+```typescript
+if (node.type === 'INSTANCE') {
+  const component = node.mainComponent
+  console.log('Instance of:', component?.name)
+}
+```
+
+## Variables
+
+### `getLocalVariables()`
+
+```typescript
+getLocalVariables(type?: string): Variable[]
+```
+
+Returns all variables, optionally filtered by type.
+
+```typescript
+const colorVars = figma.getLocalVariables('COLOR')
+for (const v of colorVars) {
+  console.log(v.name, v.valuesByMode)
+}
+```
+
+### `getVariableById()`
+
+```typescript
+getVariableById(id: string): Variable | null
+```
+
+### `createVariable()`
+
+```typescript
+createVariable(
+  name: string,
+  type: VariableType,
+  collectionId: string,
+  value?: VariableValue
+): Variable
+```
+
+```typescript
+const collection = figma.createVariableCollection('Colors')
+const primary = figma.createVariable('Primary', 'COLOR', collection.id, {
+  r: 0.2,
+  g: 0.4,
+  b: 0.8
+})
+```
+
+### `setVariableValue()`
+
+```typescript
+setVariableValue(variableId: string, modeId: string, value: VariableValue): void
+```
+
+```typescript
+figma.setVariableValue(primary.id, modeId, { r: 0.3, g: 0.5, b: 0.9 })
+```
+
+### `deleteVariable()`
+
+```typescript
+deleteVariable(id: string): void
+```
+
+### Variable Collections
+
+```typescript
+getLocalVariableCollections(): VariableCollection[]
+getVariableCollectionById(id: string): VariableCollection | null
+createVariableCollection(name: string): VariableCollection
+deleteVariableCollection(id: string): void
+```
+
+### Binding Variables
+
+```typescript
+bindVariable(nodeId: string, field: string, variableId: string): void
+unbindVariable(nodeId: string, field: string): void
+```
+
+```typescript
+figma.bindVariable(rect.id, 'fills.0.color', primary.id)
+```
+
+## Boolean Operations
+
+### `booleanOperation()`
+
+```typescript
+booleanOperation(
+  operation: 'UNION' | 'SUBTRACT' | 'INTERSECT' | 'EXCLUDE',
+  nodeIds: string[]
+): FigmaNodeProxy
+```
+
+```typescript
+const circle1 = figma.createEllipse()
+const circle2 = figma.createEllipse()
+circle2.x = 50
+const union = figma.booleanOperation('UNION', [circle1.id, circle2.id])
+```
+
+### `flattenNode()`
+
+```typescript
+flattenNode(nodeIds: string[]): FigmaNodeProxy
+```
+
+Flattens nodes to a single vector (combines paths).
+
+## Viewport
+
+### `viewport`
+
+```typescript
+get viewport(): { center: { x: number; y: number }; zoom: number }
+set viewport(v: { center: { x: number; y: number }; zoom: number })
+```
+
+```typescript
+figma.viewport = { center: { x: 500, y: 300 }, zoom: 1.5 }
+```
+
+## Utilities
+
+### `notify()`
+
+```typescript
+notify(message: string): { cancel: () => void }
+```
+
+Displays a notification (stub: logs to console).
+
+```typescript
+const notification = figma.notify('Export complete')
+setTimeout(() => notification.cancel(), 3000)
+```
+
+### `loadFontAsync()`
+
+```typescript
+async loadFontAsync(fontName: FigmaFontName): Promise<void>
+```
+
+No-op stub (OpenPencil doesn't gate text editing on font loading).
+
+### `mixed`
+
+```typescript
+readonly mixed: typeof MIXED
+```
+
+Symbol for mixed property values.
+
+```typescript
+if (node.cornerRadius === figma.mixed) {
+  console.log('Mixed corner radii')
+}
+```
+
+## FigmaNodeProxy
+
+Proxy object for a single node. Provides Figma-compatible getters/setters.
+
+### Tree Navigation
+
+```typescript
+get parent(): FigmaNodeProxy | null
+get children(): FigmaNodeProxy[]
+appendChild(child: FigmaNodeProxy): void
+insertChild(index: number, child: FigmaNodeProxy): void
+remove(): void
+clone(): FigmaNodeProxy
+```
+
+```typescript
+const frame = figma.createFrame()
+const rect = figma.createRectangle()
+frame.appendChild(rect)
+console.log(rect.parent === frame) // true
+```
+
+### Search
+
+```typescript
+findAll(callback?: (node: FigmaNodeProxy) => boolean): FigmaNodeProxy[]
+findOne(callback: (node: FigmaNodeProxy) => boolean): FigmaNodeProxy | null
+findChild(callback: (node: FigmaNodeProxy) => boolean): FigmaNodeProxy | null
+findChildren(callback?: (node: FigmaNodeProxy) => boolean): FigmaNodeProxy[]
+findAllWithCriteria(criteria: { types?: string[] }): FigmaNodeProxy[]
+```
+
+```typescript
+const rects = figma.currentPage.findAllWithCriteria({ types: ['RECTANGLE'] })
+for (const rect of rects) {
+  rect.fills = [{ type: 'SOLID', color: { r: 1, g: 0, b: 0 }, opacity: 1, visible: true }]
+}
+
+const redShapes = figma.currentPage.findAll(node => {
+  const fill = node.fills?.[0]
+  return fill?.type === 'SOLID' && fill.color.r > 0.9
+})
+```
+
+### Geometry
+
+```typescript
+get x(): number
+set x(v: number)
+get y(): number
+set y(v: number)
+get width(): number
+get height(): number
+get rotation(): number
+set rotation(v: number)
+
+resize(width: number, height: number): void
+resizeWithoutConstraints(width: number, height: number): void
+
+get absoluteTransform(): [[number, number, number], [number, number, number]]
+get absoluteBoundingBox(): Rect
+get absoluteRenderBounds(): Rect
+```
+
+### Visual Properties
+
+```typescript
+get fills(): readonly Fill[]
+set fills(v: readonly Fill[])
+get strokes(): readonly Stroke[]
+set strokes(v: readonly Stroke[])
+get effects(): readonly Effect[]
+set effects(v: readonly Effect[])
+get opacity(): number
+set opacity(v: number)
+get visible(): boolean
+set visible(v: boolean)
+get locked(): boolean
+set locked(v: boolean)
+get blendMode(): string
+set blendMode(v: string)
+get clipsContent(): boolean
+set clipsContent(v: boolean)
+```
+
+### Corner Radius
+
+```typescript
+get cornerRadius(): number | typeof MIXED
+set cornerRadius(v: number | typeof MIXED)
+get topLeftRadius(): number
+set topLeftRadius(v: number)
+get topRightRadius(): number
+set topRightRadius(v: number)
+get bottomLeftRadius(): number
+set bottomLeftRadius(v: number)
+get bottomRightRadius(): number
+set bottomRightRadius(v: number)
+get cornerSmoothing(): number
+set cornerSmoothing(v: number)
+```
+
+### Text Properties
+
+```typescript
+get characters(): string
+set characters(v: string)
+get fontSize(): number
+set fontSize(v: number)
+get fontName(): FigmaFontName
+set fontName(v: FigmaFontName)
+get fontWeight(): number
+set fontWeight(v: number)
+get textAlignHorizontal(): string
+set textAlignHorizontal(v: string)
+get textAlignVertical(): string
+set textAlignVertical(v: string)
+get textAutoResize(): string
+set textAutoResize(v: string)
+get letterSpacing(): number
+set letterSpacing(v: number)
+get lineHeight(): number | null
+set lineHeight(v: number | null)
+
+insertCharacters(start: number, characters: string): void
+deleteCharacters(start: number, end: number): void
+```
+
+### Layout Properties
+
+```typescript
+get layoutMode(): LayoutMode
+set layoutMode(v: LayoutMode)
+get primaryAxisAlignItems(): string
+set primaryAxisAlignItems(v: string)
+get counterAxisAlignItems(): string
+set counterAxisAlignItems(v: string)
+get itemSpacing(): number
+set itemSpacing(v: number)
+get paddingTop(): number
+set paddingTop(v: number)
+get paddingRight(): number
+set paddingRight(v: number)
+get paddingBottom(): number
+set paddingBottom(v: number)
+get paddingLeft(): number
+set paddingLeft(v: number)
+get layoutWrap(): string
+set layoutWrap(v: string)
+get primaryAxisSizingMode(): string
+set primaryAxisSizingMode(v: string)
+get counterAxisSizingMode(): string
+set counterAxisSizingMode(v: string)
+
+get layoutPositioning(): string
+set layoutPositioning(v: string)
+get layoutGrow(): number
+set layoutGrow(v: number)
+get layoutAlign(): string
+set layoutAlign(v: string)
+```
+
+### Serialization
+
+```typescript
+toJSON(): Record<string, unknown>
+toString(): string
+```
+
+```typescript
+const json = rect.toJSON()
+console.log(JSON.stringify(json, null, 2))
+
+console.log(rect.toString()) // "[RECTANGLE "Rect" 0:42]"
+```
+
+## Example: Batch Processing
+
+```typescript
+import { FigmaAPI } from '@open-pencil/core'
+
+function makeAllRectsRounded(figma: FigmaAPI) {
+  const rects = figma.currentPage.findAllWithCriteria({ types: ['RECTANGLE'] })
+  
+  for (const rect of rects) {
+    if (rect.width > 50 && rect.height > 50) {
+      rect.cornerRadius = 8
+    }
+  }
+  
+  figma.notify(`Updated ${rects.length} rectangles`)
+}
+```
+
+## Example: Component & Variables
+
+```typescript
+import { FigmaAPI } from '@open-pencil/core'
+
+function setupDesignSystem(figma: FigmaAPI) {
+  // Create variable collection
+  const colors = figma.createVariableCollection('Brand Colors')
+  const primaryColor = figma.createVariable('Primary', 'COLOR', colors.id, {
+    r: 0.2,
+    g: 0.4,
+    b: 0.8
+  })
+  
+  // Create button component
+  const button = figma.createFrame()
+  button.name = 'Button'
+  button.resize(120, 40)
+  button.cornerRadius = 8
+  button.layoutMode = 'HORIZONTAL'
+  button.primaryAxisAlignItems = 'CENTER'
+  button.counterAxisAlignItems = 'CENTER'
+  button.paddingLeft = 16
+  button.paddingRight = 16
+  
+  const label = figma.createText()
+  label.characters = 'Button'
+  label.fontSize = 14
+  button.appendChild(label)
+  
+  // Bind variable
+  figma.bindVariable(button.id, 'fills.0.color', primaryColor.id)
+  
+  // Convert to component
+  const component = figma.createComponentFromNode(button)
+  
+  // Create instance
+  const instance = component.createInstance()
+  instance.x = 200
+  figma.currentPage.appendChild(instance)
+}
+```
+
+## Differences from Figma Plugin API
+
+1. **No async font loading**: `loadFontAsync()` is a no-op
+2. **No plugin UI**: `showUI()`, `ui.*` not implemented
+3. **No client storage**: `clientStorage.*` not implemented
+4. **No payments**: `payments.*` not implemented
+5. **No network**: `fetch()` not available (use Node.js/Bun APIs)
+6. **Synchronous by default**: Most operations are synchronous
+
+## Type Definitions
+
+```typescript
+export type FigmaFontName = { family: string; style: string }
+
+export class FigmaNodeProxy {
+  readonly id: string
+  readonly type: NodeType
+  name: string
+  removed: boolean
+  // ... 100+ properties matching Figma Plugin API
+}
+
+export class FigmaAPI {
+  readonly graph: SceneGraph
+  readonly mixed: typeof MIXED
+  currentPage: FigmaNodeProxy & { selection: FigmaNodeProxy[] }
+  root: FigmaNodeProxy
+  // ... methods
+}
+```

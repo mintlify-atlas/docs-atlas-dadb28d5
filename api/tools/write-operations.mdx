@@ -1,0 +1,704 @@
+---
+title: Write Operations
+description: Tools for creating, deleting, and modifying nodes
+---
+
+## create_shape
+
+Create a shape on the canvas. Use FRAME for containers/cards, RECTANGLE for solid blocks, ELLIPSE for circles, TEXT for labels, SECTION for page sections.
+
+<ParamField path="type" type="string" required>
+  Node type. Options: `FRAME`, `RECTANGLE`, `ELLIPSE`, `TEXT`, `LINE`, `STAR`, `POLYGON`, `SECTION`
+</ParamField>
+
+<ParamField path="x" type="number" required>
+  X position
+</ParamField>
+
+<ParamField path="y" type="number" required>
+  Y position
+</ParamField>
+
+<ParamField path="width" type="number" required>
+  Width in pixels (minimum: 1)
+</ParamField>
+
+<ParamField path="height" type="number" required>
+  Height in pixels (minimum: 1)
+</ParamField>
+
+<ParamField path="name" type="string">
+  Node name shown in layers panel
+</ParamField>
+
+<ParamField path="parent_id" type="string">
+  Parent node ID to nest inside
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns a summary of the created node (id, name, type).
+</ParamField>
+
+---
+
+## render
+
+Render JSX to design nodes. Primary creation tool — creates entire component trees in one call.
+
+<ParamField path="jsx" type="string" required>
+  JSX string to render. Example: `<Frame name="Card" w={320} h="hug" flex="col" gap={16} p={24} bg="#FFF" rounded={16}><Text size={18} weight="bold">Title</Text></Frame>`
+</ParamField>
+
+<ParamField path="x" type="number">
+  X position of the root node
+</ParamField>
+
+<ParamField path="y" type="number">
+  Y position of the root node
+</ParamField>
+
+<ParamField path="parent_id" type="string">
+  Parent node ID to render into
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the root node summary with id, name, type, and children IDs.
+</ParamField>
+
+---
+
+## update_node
+
+Update properties of an existing node: position, size, opacity, corner radius, visibility, text, font.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="x" type="number">
+  X position
+</ParamField>
+
+<ParamField path="y" type="number">
+  Y position
+</ParamField>
+
+<ParamField path="width" type="number">
+  Width (minimum: 1)
+</ParamField>
+
+<ParamField path="height" type="number">
+  Height (minimum: 1)
+</ParamField>
+
+<ParamField path="opacity" type="number">
+  Opacity (0-1)
+</ParamField>
+
+<ParamField path="corner_radius" type="number">
+  Corner radius (minimum: 0)
+</ParamField>
+
+<ParamField path="visible" type="boolean">
+  Visibility
+</ParamField>
+
+<ParamField path="text" type="string">
+  Text content (TEXT nodes)
+</ParamField>
+
+<ParamField path="font_size" type="number">
+  Font size (minimum: 1)
+</ParamField>
+
+<ParamField path="font_weight" type="number">
+  Font weight (100-900)
+</ParamField>
+
+<ParamField path="name" type="string">
+  Layer name
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node ID and array of updated properties.
+</ParamField>
+
+---
+
+## delete_node
+
+Delete a node by ID.
+
+<ParamField path="id" type="string" required>
+  Node ID to delete
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the deleted node ID.
+</ParamField>
+
+---
+
+## clone_node
+
+Clone (duplicate) a node.
+
+<ParamField path="id" type="string" required>
+  Node ID to clone
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns a summary of the cloned node (id, name, type).
+</ParamField>
+
+---
+
+## rename_node
+
+Rename a node in the layers panel.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  New name
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node ID and new name.
+</ParamField>
+
+---
+
+## reparent_node
+
+Move a node into a different parent.
+
+<ParamField path="id" type="string" required>
+  Node ID to move
+</ParamField>
+
+<ParamField path="parent_id" type="string" required>
+  New parent node ID
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node ID and parent ID.
+</ParamField>
+
+---
+
+## node_move
+
+Move a node to new coordinates.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="x" type="number" required>
+  X position
+</ParamField>
+
+<ParamField path="y" type="number" required>
+  Y position
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node ID and new coordinates.
+</ParamField>
+
+---
+
+## node_resize
+
+Resize a node.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="width" type="number" required>
+  Width (minimum: 1)
+</ParamField>
+
+<ParamField path="height" type="number" required>
+  Height (minimum: 1)
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node ID and new dimensions.
+</ParamField>
+
+---
+
+## node_replace_with
+
+Replace a node with JSX content.
+
+<ParamField path="id" type="string" required>
+  Node ID to replace
+</ParamField>
+
+<ParamField path="jsx" type="string" required>
+  JSX string for the replacement
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the new node summary (id, name, type).
+</ParamField>
+
+---
+
+## select_nodes
+
+Select one or more nodes by ID.
+
+<ParamField path="ids" type="string[]" required>
+  Node IDs to select
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the selected node IDs.
+</ParamField>
+
+---
+
+## group_nodes
+
+Group selected nodes.
+
+<ParamField path="ids" type="string[]" required>
+  Node IDs to group (minimum: 2)
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the group node summary (id, name, type).
+</ParamField>
+
+---
+
+## ungroup_node
+
+Ungroup a group node.
+
+<ParamField path="id" type="string" required>
+  Group node ID
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the ungrouped node ID.
+</ParamField>
+
+---
+
+## flatten_nodes
+
+Flatten nodes into a single vector.
+
+<ParamField path="ids" type="string[]" required>
+  Node IDs to flatten
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the flattened node summary (id, name, type).
+</ParamField>
+
+---
+
+## create_component
+
+Convert a frame/group into a component.
+
+<ParamField path="id" type="string" required>
+  Node ID to convert
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the component node summary (id, name, type).
+</ParamField>
+
+---
+
+## create_instance
+
+Create an instance of a component.
+
+<ParamField path="component_id" type="string" required>
+  Component node ID
+</ParamField>
+
+<ParamField path="x" type="number">
+  X position
+</ParamField>
+
+<ParamField path="y" type="number">
+  Y position
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the instance node summary (id, name, type).
+</ParamField>
+
+---
+
+## create_page
+
+Create a new page.
+
+<ParamField path="name" type="string" required>
+  Page name
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the page ID and name.
+</ParamField>
+
+---
+
+## switch_page
+
+Switch to a different page by name or ID.
+
+<ParamField path="page" type="string" required>
+  Page name or ID
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the page name and ID.
+</ParamField>
+
+---
+
+## create_vector
+
+Create a vector node with optional path data.
+
+<ParamField path="x" type="number" required>
+  X position
+</ParamField>
+
+<ParamField path="y" type="number" required>
+  Y position
+</ParamField>
+
+<ParamField path="name" type="string">
+  Node name
+</ParamField>
+
+<ParamField path="path" type="string">
+  VectorNetwork JSON
+</ParamField>
+
+<ParamField path="fill" type="color">
+  Fill color (hex)
+</ParamField>
+
+<ParamField path="stroke" type="color">
+  Stroke color (hex)
+</ParamField>
+
+<ParamField path="stroke_weight" type="number">
+  Stroke weight
+</ParamField>
+
+<ParamField path="parent_id" type="string">
+  Parent node ID
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the vector node summary (id, name, type).
+</ParamField>
+
+---
+
+## create_slice
+
+Create a slice (export region) on the canvas.
+
+<ParamField path="x" type="number" required>
+  X position
+</ParamField>
+
+<ParamField path="y" type="number" required>
+  Y position
+</ParamField>
+
+<ParamField path="width" type="number" required>
+  Width (minimum: 1)
+</ParamField>
+
+<ParamField path="height" type="number" required>
+  Height (minimum: 1)
+</ParamField>
+
+<ParamField path="name" type="string">
+  Slice name
+</ParamField>
+
+<ParamField path="parent_id" type="string">
+  Parent node ID
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the slice node summary (id, name, type).
+</ParamField>
+
+---
+
+## create_variable
+
+Create a new variable in a collection.
+
+<ParamField path="name" type="string" required>
+  Variable name
+</ParamField>
+
+<ParamField path="type" type="string" required>
+  Variable type. Options: `COLOR`, `FLOAT`, `STRING`, `BOOLEAN`
+</ParamField>
+
+<ParamField path="collection_id" type="string" required>
+  Collection ID
+</ParamField>
+
+<ParamField path="value" type="string">
+  Initial value (hex for COLOR, number for FLOAT, etc.)
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the created variable object.
+</ParamField>
+
+---
+
+## set_variable
+
+Set the value of a variable for a specific mode.
+
+<ParamField path="id" type="string" required>
+  Variable ID
+</ParamField>
+
+<ParamField path="mode" type="string" required>
+  Mode ID
+</ParamField>
+
+<ParamField path="value" type="string" required>
+  Value (hex for COLOR, number for FLOAT, etc.)
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the variable ID, mode, and new value.
+</ParamField>
+
+---
+
+## delete_variable
+
+Delete a variable.
+
+<ParamField path="id" type="string" required>
+  Variable ID
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the deleted variable ID.
+</ParamField>
+
+---
+
+## bind_variable
+
+Bind a variable to a node property (fills, strokes, opacity, width, height, etc.).
+
+<ParamField path="node_id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="field" type="string" required>
+  Property field (fills, strokes, opacity, width, height, etc.)
+</ParamField>
+
+<ParamField path="variable_id" type="string" required>
+  Variable ID
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node ID, field, and variable ID.
+</ParamField>
+
+---
+
+## create_collection
+
+Create a new variable collection.
+
+<ParamField path="name" type="string" required>
+  Collection name
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the created collection object.
+</ParamField>
+
+---
+
+## delete_collection
+
+Delete a variable collection and all its variables.
+
+<ParamField path="id" type="string" required>
+  Collection ID
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the deleted collection ID.
+</ParamField>
+
+---
+
+## boolean_union
+
+Union (combine) multiple nodes.
+
+<ParamField path="ids" type="string[]" required>
+  Node IDs to union
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the resulting boolean node summary (id, name, type).
+</ParamField>
+
+---
+
+## boolean_subtract
+
+Subtract the second node from the first.
+
+<ParamField path="ids" type="string[]" required>
+  Node IDs (first minus rest)
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the resulting boolean node summary (id, name, type).
+</ParamField>
+
+---
+
+## boolean_intersect
+
+Intersect multiple nodes.
+
+<ParamField path="ids" type="string[]" required>
+  Node IDs to intersect
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the resulting boolean node summary (id, name, type).
+</ParamField>
+
+---
+
+## boolean_exclude
+
+Exclude (XOR) multiple nodes.
+
+<ParamField path="ids" type="string[]" required>
+  Node IDs to exclude
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the resulting boolean node summary (id, name, type).
+</ParamField>
+
+---
+
+## path_set
+
+Set vector path data on a node. Provide a VectorNetwork JSON.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="path" type="string" required>
+  VectorNetwork JSON
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node ID.
+</ParamField>
+
+---
+
+## path_scale
+
+Scale vector path from center.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="factor" type="number" required>
+  Scale factor (e.g. 2 for double)
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node ID and scale factor.
+</ParamField>
+
+---
+
+## path_flip
+
+Flip vector path horizontally or vertically.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="axis" type="string" required>
+  Flip axis. Options: `horizontal`, `vertical`
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node ID and flip axis.
+</ParamField>
+
+---
+
+## path_move
+
+Move all path points by an offset.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="dx" type="number" required>
+  X offset
+</ParamField>
+
+<ParamField path="dy" type="number" required>
+  Y offset
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node ID and offsets.
+</ParamField>
+
+---
+
+## eval
+
+Execute JavaScript with full Figma Plugin API access. Use for operations not covered by other tools. The `figma` global is available.
+
+<ParamField path="code" type="string" required>
+  JavaScript code to execute
+</ParamField>
+
+<ParamField path="Returns" type="any">
+  Returns the result of the executed code, or null if no return value.
+</ParamField>

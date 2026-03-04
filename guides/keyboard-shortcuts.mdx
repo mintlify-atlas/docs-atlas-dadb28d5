@@ -1,0 +1,194 @@
+---
+title: Keyboard Shortcuts
+description: Complete reference for OpenPencil keyboard shortcuts and hotkeys
+---
+
+## Tools
+
+| Shortcut | Tool |
+|----------|------|
+| `V` | Select (Move) tool |
+| `K` | Scale tool |
+| `F` | Frame |
+| `Shift+S` | Section |
+| `R` | Rectangle |
+| `O` | Ellipse |
+| `L` | Line |
+| `Shift+L` | Arrow |
+| `P` | Pen |
+| `Shift+P` | Pencil (freehand) |
+| `T` | Text |
+| `H` | Hand (pan) |
+| `C` | Comment |
+
+## Canvas Navigation
+
+| Shortcut | Action |
+|----------|--------|
+| `Space + drag` | Pan viewport |
+| `Middle mouse drag` | Pan viewport |
+| `Cmd + =` | Zoom in |
+| `Cmd + -` | Zoom out |
+| `Cmd + 0` | Zoom to 100% |
+| `Shift + 1` | Zoom to fit all |
+| `Shift + 2` | Zoom to selection |
+| `Cmd + '` | Toggle grid |
+| `Shift + R` | Toggle rulers |
+
+## Selection
+
+| Shortcut | Action |
+|----------|--------|
+| `Click` | Select node |
+| `Shift + click` | Add to selection |
+| `Cmd + A` | Select all |
+| `Cmd + click` | Toggle node in selection |
+| `Double-click` | Deep select (enter group/frame) |
+| `Escape` | Clear selection |
+
+## Manipulation
+
+| Shortcut | Action |
+|----------|--------|
+| `Arrow keys` | Nudge 1px |
+| `Shift + arrows` | Nudge 10px |
+| `Cmd + D` | Duplicate |
+| `Alt + drag` | Duplicate while dragging |
+| `Backspace` / `Delete` | Delete selection |
+| `Cmd + G` | Group |
+| `Cmd + Shift + G` | Ungroup |
+| `Shift + drag` | Constrain to axis |
+| `Alt + drag (resize)` | Resize from center |
+| `Shift + drag (resize)` | Constrain proportions |
+
+## Text Editing
+
+| Shortcut | Action |
+|----------|--------|
+| `Cmd + B` | Bold |
+| `Cmd + I` | Italic |
+| `Cmd + U` | Underline |
+| `Cmd + Shift + X` | Strikethrough |
+| `Cmd + K` | Add link |
+| `Cmd + A` | Select all text |
+| `Double-click` | Select word |
+| `Triple-click` | Select paragraph |
+| `Escape` | Exit text edit mode |
+
+## Layout
+
+| Shortcut | Action |
+|----------|--------|
+| `Shift + A` | Add auto-layout |
+
+## Alignment
+
+| Shortcut | Action |
+|----------|--------|
+| `Alt + A` | Align left |
+| `Alt + H` | Align horizontal center |
+| `Alt + D` | Align right |
+| `Alt + W` | Align top |
+| `Alt + V` | Align vertical center |
+| `Alt + S` | Align bottom |
+| `Ctrl + Alt + H` | Distribute horizontally |
+| `Ctrl + Alt + V` | Distribute vertically |
+| `Ctrl + Alt + T` | Tidy up (auto-arrange) |
+
+## Boolean Operations
+
+| Shortcut | Action |
+|----------|--------|
+| `Cmd + Shift + U` | Union |
+| `Cmd + Shift + S` | Subtract |
+| `Cmd + Shift + I` | Intersect |
+| `Cmd + Shift + E` | Exclude |
+| `Cmd + E` | Flatten selection |
+
+## Components
+
+| Shortcut | Action |
+|----------|--------|
+| `Cmd + Alt + K` | Create component |
+
+## File Operations
+
+| Shortcut | Action |
+|----------|--------|
+| `Cmd + N` | New file |
+| `Cmd + O` | Open file |
+| `Cmd + S` | Save |
+| `Cmd + Shift + S` | Save As |
+| `Cmd + Shift + E` | Export selection |
+
+## Edit
+
+| Shortcut | Action |
+|----------|--------|
+| `Cmd + Z` | Undo |
+| `Cmd + Shift + Z` | Redo |
+| `Cmd + C` | Copy |
+| `Cmd + X` | Cut |
+| `Cmd + V` | Paste |
+| `Cmd + Shift + C` | Copy as CSS |
+
+## Layers Panel
+
+| Shortcut | Action |
+|----------|--------|
+| `Cmd + F` | Search layers |
+| `Enter` | Rename selected layer |
+
+## Other
+
+| Shortcut | Action |
+|----------|--------|
+| `I` | Eyedropper (pick color) |
+| `Cmd + /` | Show AI chat |
+
+## Mac vs Windows
+
+All shortcuts listed use Mac notation:
+
+- `Cmd` on Mac = `Ctrl` on Windows/Linux
+- `Alt` on Mac = `Alt` on Windows/Linux
+- `Backspace` on Mac = `Backspace` on Windows/Linux
+
+## Customizing Shortcuts
+
+Keyboard shortcuts are currently not customizable. If you need different shortcuts, please [open an issue](https://github.com/open-pencil/open-pencil/issues) with your use case.
+
+## Conflicting Shortcuts
+
+### Browser vs Desktop
+
+When using OpenPencil in the browser, some shortcuts may conflict with browser defaults:
+
+- `Cmd + S` (Save) — Browser's save page dialog
+- `Cmd + O` (Open) — Browser's open file dialog
+- `Cmd + T` (New tab) — Browser creates a new tab
+
+**Solution:** Use the desktop app for full keyboard shortcut support.
+
+### Platform Differences
+
+Some shortcuts behave differently across platforms:
+
+- **Mac keyboards with Option key** — We use `e.code` instead of `e.key` to handle Option key character transformations
+- **Text input** — Shortcuts are disabled when editing text (except text formatting shortcuts)
+
+## Learning Shortcuts
+
+To discover shortcuts:
+
+1. **Hover over toolbar icons** — Tooltips show the shortcut
+2. **Right-click menus** — Show shortcuts next to menu items
+3. **This page** — Keep it bookmarked for quick reference
+
+## Tips
+
+- Hold `Shift` while dragging to constrain movement or maintain proportions
+- Hold `Alt` while dragging to duplicate or resize from center
+- Combine modifiers for advanced operations (e.g., `Shift + Alt + drag` for proportional resize from center)
+- Use `Space + drag` to pan the canvas while any tool is active
+- Press `V` to quickly return to the Select tool from any other tool

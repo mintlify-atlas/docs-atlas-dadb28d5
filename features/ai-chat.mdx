@@ -1,0 +1,524 @@
+---
+title: AI Chat
+description: Natural language design automation with 75 built-in tools
+---
+
+OpenPencil includes an AI chat interface that can create, modify, and analyze designs using natural language. The AI has access to 75 tools that control every aspect of the editor.
+
+## Overview
+
+The AI chat is powered by:
+
+- **Tool calling**: AI invokes functions to manipulate designs
+- **Vercel AI SDK**: Streaming responses with tool execution
+- **FigmaAPI**: Figma Plugin API-compatible interface
+- **Model flexibility**: Bring your own API key (Anthropic, OpenAI, Google, DeepSeek, etc.)
+
+From `AGENTS.md:86-96`:
+
+> - Tool operations are defined once in `packages/core/src/tools/schema.ts` as framework-agnostic `ToolDef` objects
+> - Each tool has: name, description, typed params, and an `execute(figma: FigmaAPI, args)` function
+> - `defineTool()` gives type-safe params in the execute body; the array `ALL_TOOLS` erases the generics for adapters
+> - AI adapter (`packages/core/src/tools/ai-adapter.ts`): `toolsToAI()` converts ToolDefs → valibot schemas + Vercel AI `tool()` wrappers
+> - `src/ai/tools.ts` is just a thin wire: creates FigmaAPI from editor store, calls `toolsToAI()`
+> - To add a new tool: add a `defineTool()` in `schema.ts`, add to `ALL_TOOLS` array — it's instantly available in AI chat, MCP, and via `eval` in CLI
+> - `FigmaAPI` (`packages/core/src/figma-api.ts`) is the execution target for all tools — Figma Plugin API compatible, uses Symbols for hidden internals
+
+## Available Models
+
+From `packages/core/src/constants.ts:88-124`:
+
+```typescript
+export const AI_MODELS: ModelOption[] = [
+  {
+    id: 'anthropic/claude-sonnet-4.6',
+    name: 'Claude Sonnet 4.6',
+    provider: 'Anthropic',
+    tag: 'Best for design'
+  },
+  {
+    id: 'anthropic/claude-opus-4.6',
+    name: 'Claude Opus 4.6',
+    provider: 'Anthropic',
+    tag: 'Smartest'
+  },
+  {
+    id: 'moonshotai/kimi-k2.5',
+    name: 'Kimi K2.5',
+    provider: 'Moonshot',
+    tag: 'Vision + code'
+  },
+  {
+    id: 'google/gemini-3.1-pro-preview',
+    name: 'Gemini 3.1 Pro',
+    provider: 'Google',
+    tag: '1M context'
+  },
+  { id: 'openai/gpt-5.3-codex', name: 'GPT-5.3 Codex', provider: 'OpenAI' },
+  
+  // Fast & cheap
+  { id: 'google/gemini-3-flash-preview', name: 'Gemini 3 Flash', provider: 'Google', tag: 'Fast' },
+  { id: 'deepseek/deepseek-v3.2', name: 'DeepSeek V3.2', provider: 'DeepSeek', tag: 'Cheap' },
+  
+  // Free (with tool calling)
+  { id: 'qwen/qwen3-coder:free', name: 'Qwen3 Coder', provider: 'Qwen', tag: 'Free' }
+]
+```
+
+**Recommended:** Claude Sonnet 4.6 for design tasks (vision + UI-to-code specialist)
+
+## Tool Architecture
+
+### Tool Definition
+
+Tools are defined in `packages/core/src/tools/schema.ts` using type-safe builders:
+
+```typescript
+export const createShape = defineTool({
+  name: 'create_shape',
+  description: 'Create a shape on the canvas. Use FRAME for containers/cards, RECTANGLE for solid blocks, ELLIPSE for circles, TEXT for labels.',
+  params: {
+    type: {
+      type: 'string',
+      description: 'Node type',
+      required: true,
+      enum: ['FRAME', 'RECTANGLE', 'ELLIPSE', 'TEXT', 'LINE', 'STAR', 'POLYGON', 'SECTION']
+    },
+    x: { type: 'number', description: 'X position', required: true },
+    y: { type: 'number', description: 'Y position', required: true },
+    width: { type: 'number', description: 'Width in pixels', required: true, min: 1 },
+    height: { type: 'number', description: 'Height in pixels', required: true, min: 1 },
+    name: { type: 'string', description: 'Node name shown in layers panel' },
+    parent_id: { type: 'string', description: 'Parent node ID to nest inside' }
+  },
+  execute: (figma, args) => {
+    const parentId = args.parent_id
+    const parent = parentId ? figma.getNodeById(parentId) : null
+    
+    const createMap: Record<string, () => FigmaNodeProxy> = {
+      FRAME: () => figma.createFrame(),
+      RECTANGLE: () => figma.createRectangle(),
+      ELLIPSE: () => figma.createEllipse(),
+      TEXT: () => figma.createText(),
+      LINE: () => figma.createLine(),
+      STAR: () => figma.createStar(),
+      POLYGON: () => figma.createPolygon(),
+      SECTION: () => figma.createSection()
+    }
+    
+    const node = createMap[args.type]()
+    node.x = args.x
+    node.y = args.y
+    node.resize(args.width, args.height)
+    if (args.name) node.name = args.name
+    if (parent) parent.appendChild(node)
+    
+    return { id: node.id, name: node.name, type: node.type }
+  }
+})
+```
+
+From `packages/core/src/tools/schema.ts:144-183`
+
+### Tool Categories
+
+**Read Tools** (9):
+- `get_selection` - Current selection details
+- `get_page_tree` - Full page hierarchy
+- `get_node` - Node properties by ID
+- `find_nodes` - Search by name/type
+- `list_pages` - All pages
+- `list_variables` - Design variables
+- `list_collections` - Variable collections
+
+**Create Tools** (14):
+- `create_shape` - Basic shapes (frame, rect, ellipse, text, etc.)
+- `render` - JSX to design nodes (primary creation tool)
+- `create_component` - Convert to component
+- `create_instance` - Instantiate component
+- `create_page` - New page
+- `create_vector` - Custom vector path
+- `create_variable` - Design token
+- `create_collection` - Variable collection
+
+**Modify Tools** (28):
+- `update_node` - Position, size, opacity, corner radius, etc.
+- `set_fill` - Fill color
+- `set_stroke` - Border styling
+- `set_effects` - Shadows and blur
+- `set_layout` - Auto-layout (flexbox)
+- `set_constraints` - Resize constraints
+- `set_text` - Text content
+- `set_font` - Font properties
+- `set_rotation`, `set_opacity`, `set_radius`, `set_visible`, etc.
+
+**Structure Tools** (10):
+- `delete_node` - Remove node
+- `clone_node` - Duplicate
+- `reparent_node` - Move to new parent
+- `group_nodes` - Create group
+- `ungroup_node` - Ungroup
+- `select_nodes` - Update selection
+
+**Boolean Operations** (4):
+- `boolean_union` - Combine shapes
+- `boolean_subtract` - Cut out
+- `boolean_intersect` - Overlap only
+- `boolean_exclude` - XOR
+
+**Vector Tools** (5):
+- `path_get`, `path_set` - Vector data
+- `path_scale`, `path_flip`, `path_move` - Transform paths
+
+**Variable Tools** (7):
+- `get_variable`, `find_variables`, `create_variable`, `set_variable`, `delete_variable`
+- `bind_variable`, `unbind_variable`
+
+**Advanced Tools** (8):
+- `node_tree` - Recursive tree with depth limit
+- `node_ancestors` - Parent chain
+- `node_replace_with` - Replace with JSX
+- `viewport_get`, `viewport_set`, `viewport_zoom_to_fit`
+- `flatten_nodes` - Flatten to vector
+- `eval` - Execute arbitrary JavaScript
+
+## Primary Creation Tool: `render`
+
+The most powerful tool is `render`, which converts JSX to design nodes:
+
+```typescript
+export const render = defineTool({
+  name: 'render',
+  description: 'Render JSX to design nodes. Primary creation tool — creates entire component trees in one call.',
+  params: {
+    jsx: { type: 'string', description: 'JSX string to render', required: true },
+    x: { type: 'number', description: 'X position of the root node' },
+    y: { type: 'number', description: 'Y position of the root node' },
+    parent_id: { type: 'string', description: 'Parent node ID to render into' }
+  },
+  execute: async (figma, args) => {
+    const { renderJsx } = await import('../render/render-jsx')
+    const result = await renderJsx(figma.graph, args.jsx, {
+      parentId: args.parent_id ?? figma.currentPageId,
+      x: args.x,
+      y: args.y
+    })
+    return { id: result.id, name: result.name, type: result.type, children: result.childIds }
+  }
+})
+```
+
+From `packages/core/src/tools/schema.ts:185-204`
+
+### JSX Syntax
+
+```jsx
+// Card with auto-layout
+<Frame 
+  name="Card" 
+  w={320} 
+  h="hug" 
+  flex="col" 
+  gap={16} 
+  p={24} 
+  bg="#FFF" 
+  rounded={16}
+>
+  <Text size={18} weight="bold">Title</Text>
+  <Text size={14} color="#666">Description text goes here.</Text>
+  <Frame flex="row" gap={8}>
+    <Text size={12} weight="medium" color="#3B82F6">Learn More</Text>
+  </Frame>
+</Frame>
+```
+
+**Supported props:**
+- Layout: `w`, `h`, `flex`, `gap`, `p`, `px`, `py`
+- Visual: `bg`, `fill`, `stroke`, `rounded`, `opacity`
+- Text: `size`, `weight`, `color`, `align`
+- Constraints: `minW`, `maxW`, `minH`, `maxH`
+
+## Usage Examples
+
+### Create a Button
+
+**User:** "Create a primary button that says 'Sign Up'"
+
+**AI Response:**
+```typescript
+// Tool: render
+{
+  jsx: `
+    <Frame name="Button" w={120} h={44} flex="row" gap={8} bg="#3B82F6" rounded={8}>
+      <Text size={14} weight="600" color="#FFF">Sign Up</Text>
+    </Frame>
+  `,
+  x: 100,
+  y: 100
+}
+```
+
+### Create a Card Layout
+
+**User:** "Make a product card with image, title, price, and add to cart button"
+
+**AI Response:**
+```typescript
+// Tool: render
+{
+  jsx: `
+    <Frame name="Product Card" w={280} h="hug" flex="col" gap={16} p={16} bg="#FFF" rounded={12}>
+      <Frame name="Image" w={248} h={248} bg="#E5E7EB" rounded={8} />
+      <Frame flex="col" gap={8}>
+        <Text size={16} weight="600">Product Name</Text>
+        <Text size={20} weight="700" color="#3B82F6">$99.99</Text>
+      </Frame>
+      <Frame name="Button" w="fill" h={44} flex="row" gap={8} bg="#3B82F6" rounded={8}>
+        <Text size={14} weight="600" color="#FFF">Add to Cart</Text>
+      </Frame>
+    </Frame>
+  `,
+  x: 100,
+  y: 100
+}
+```
+
+### Modify Existing Elements
+
+**User:** "Change the button background to green"
+
+**AI Response:**
+```typescript
+// 1. Tool: find_nodes
+{ name: 'Button' }
+// Result: [{ id: '1:23', name: 'Button', type: 'FRAME' }]
+
+// 2. Tool: set_fill
+{ id: '1:23', color: '#22C55E' }
+```
+
+### Create with Variables
+
+**User:** "Create a color variable called 'Primary' with value #3B82F6"
+
+**AI Response:**
+```typescript
+// 1. Tool: list_collections
+// Result: [{ id: '0:1', name: 'Colors', modes: [...] }]
+
+// 2. Tool: create_variable
+{
+  name: 'Primary',
+  type: 'COLOR',
+  collection_id: '0:1',
+  value: '#3B82F6'
+}
+
+// 3. Tool: bind_variable (optional - bind to a node)
+{
+  node_id: '1:23',
+  field: 'fills',
+  variable_id: '0:5'
+}
+```
+
+## FigmaAPI
+
+All tools execute via `FigmaAPI`, which provides a Figma Plugin API-compatible interface:
+
+```typescript
+export class FigmaAPI {
+  graph: SceneGraph
+  currentPageId: string
+  
+  get root() { ... }
+  get currentPage() { ... }
+  set currentPage(page: FigmaNodeProxy) { ... }
+  
+  // Creation
+  createFrame(): FigmaNodeProxy
+  createRectangle(): FigmaNodeProxy
+  createEllipse(): FigmaNodeProxy
+  createText(): FigmaNodeProxy
+  createLine(): FigmaNodeProxy
+  createStar(): FigmaNodeProxy
+  createPolygon(): FigmaNodeProxy
+  createVector(): FigmaNodeProxy
+  createSection(): FigmaNodeProxy
+  createPage(): FigmaNodeProxy
+  
+  // Operations
+  group(nodes: FigmaNodeProxy[], parent: FigmaNodeProxy): FigmaNodeProxy
+  ungroup(group: FigmaNodeProxy): void
+  booleanOperation(op: BooleanOp, ids: string[]): FigmaNodeProxy
+  flattenNode(ids: string[]): FigmaNodeProxy
+  
+  // Components
+  createComponentFromNode(node: FigmaNodeProxy): FigmaNodeProxy
+  
+  // Lookup
+  getNodeById(id: string): FigmaNodeProxy | null
+  
+  // Variables
+  getLocalVariables(type?: VariableType): Variable[]
+  getLocalVariableCollections(): VariableCollection[]
+  createVariable(name: string, type: VariableType, collectionId: string, value?: VariableValue): Variable
+  createVariableCollection(name: string): VariableCollection
+  getVariableById(id: string): Variable | undefined
+  setVariableValue(id: string, modeId: string, value: VariableValue): void
+  bindVariable(nodeId: string, field: string, variableId: string): void
+}
+```
+
+From `packages/core/src/figma-api.ts`
+
+## Tool Adapters
+
+### AI Adapter (Vercel AI SDK)
+
+```typescript
+import { toolsToAI } from '@open-pencil/core/tools/ai-adapter'
+import { streamText } from 'ai'
+
+const figmaAPI = new FigmaAPI(graph, currentPageId)
+const tools = toolsToAI(figmaAPI)
+
+const result = await streamText({
+  model: anthropic('claude-sonnet-4.6'),
+  messages,
+  tools,
+  maxSteps: 10
+})
+```
+
+The adapter converts `ToolDef` → valibot schemas + Vercel AI `tool()` wrappers.
+
+### MCP Adapter (Model Context Protocol)
+
+```typescript
+import { createServer } from '@open-pencil/mcp'
+
+const server = createServer()
+server.start()
+```
+
+The MCP adapter converts `ToolDef` → zod schemas + MCP `registerTool()`. See [MCP Tools](/mcp/tools-reference) for details.
+
+### CLI Adapter
+
+The `eval` command provides CLI access to all tools:
+
+```bash
+bunx @open-pencil/cli eval design.fig --code '
+  const rect = figma.createRectangle()
+  rect.x = 100
+  rect.y = 100
+  rect.resize(200, 100)
+  rect.fills = [{ type: "SOLID", color: { r: 1, g: 0, b: 0, a: 1 } }]
+'
+```
+
+## Adding New Tools
+
+From `AGENTS.md:95`:
+
+> To add a new tool: add a `defineTool()` in `schema.ts`, add to `ALL_TOOLS` array — it's instantly available in AI chat, MCP, and via `eval` in CLI
+
+**Example: Add a "duplicate with offset" tool**
+
+```typescript
+// packages/core/src/tools/schema.ts
+
+export const duplicateWithOffset = defineTool({
+  name: 'duplicate_with_offset',
+  description: 'Duplicate a node with X/Y offset',
+  params: {
+    id: { type: 'string', description: 'Node ID to duplicate', required: true },
+    offset_x: { type: 'number', description: 'X offset', default: 20 },
+    offset_y: { type: 'number', description: 'Y offset', default: 20 }
+  },
+  execute: (figma, args) => {
+    const node = figma.getNodeById(args.id)
+    if (!node) return { error: `Node "${args.id}" not found` }
+    
+    const clone = node.clone()
+    clone.x += args.offset_x ?? 20
+    clone.y += args.offset_y ?? 20
+    
+    return { id: clone.id, name: clone.name, type: clone.type }
+  }
+})
+
+// Add to ALL_TOOLS array
+export const ALL_TOOLS = [
+  // ... existing tools
+  duplicateWithOffset
+]
+```
+
+The tool is now available in:
+- AI chat
+- MCP server
+- CLI `eval` command
+
+## Implementation Notes
+
+### Type Safety
+
+`defineTool()` provides full type inference:
+
+```typescript
+type ResolvedParams<P extends Record<string, ParamDef>> = {
+  [K in keyof P as P[K]['required'] extends true ? K : never]: ResolvedType<P[K]['type']>
+} & {
+  [K in keyof P as P[K]['required'] extends true ? never : K]?: ResolvedType<P[K]['type']>
+}
+
+export function defineTool<P extends Record<string, ParamDef>>(def: {
+  name: string
+  description: string
+  params: P
+  execute: (figma: FigmaAPI, args: ResolvedParams<P>) => unknown
+}): ToolDef
+```
+
+From `packages/core/src/tools/schema.ts:45-57`
+
+### Parameter Types
+
+```typescript
+export type ParamType = 'string' | 'number' | 'boolean' | 'color' | 'string[]'
+
+export interface ParamDef {
+  type: ParamType
+  description: string
+  required?: boolean
+  default?: unknown
+  enum?: string[]      // For dropdowns
+  min?: number         // For number validation
+  max?: number
+}
+```
+
+From `packages/core/src/tools/schema.ts:14-24`
+
+## Best Practices
+
+**For users:**
+1. Be specific about positions and sizes
+2. Use descriptive names for layers
+3. Reference existing nodes by name when modifying
+4. Ask for variables when building design systems
+
+**For tool authors:**
+1. Add comprehensive descriptions
+2. Use enums for constrained values
+3. Provide sensible defaults
+4. Return structured results (not just success/failure)
+5. Handle errors gracefully with descriptive messages
+
+## See Also
+
+- [MCP Server](/mcp/tools-reference) - Programmatic tool access
+- [Drawing Tools](/features/drawing-tools) - What the AI can create
+- [Components](/features/components) - Component creation via AI

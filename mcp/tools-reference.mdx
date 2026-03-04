@@ -1,0 +1,1032 @@
+---
+title: Tools Reference
+description: Complete reference for all 75+ tools available in the OpenPencil MCP server
+---
+
+# Tools Reference
+
+The OpenPencil MCP server exposes 75+ tools for programmatic design file operations. All tools operate on a `FigmaAPI` instance and follow the Figma Plugin API conventions.
+
+## File Operations
+
+These tools are unique to the MCP server (not in the AI chat or CLI).
+
+### `open_file`
+
+Open a `.fig` file for editing. Must be called before using other tools.
+
+**Parameters:**
+- `path` (string, required) — Absolute path to a `.fig` file
+
+**Returns:**
+```json
+{
+  "pages": [
+    { "id": "0:1", "name": "Page 1" },
+    { "id": "0:2", "name": "Components" }
+  ],
+  "currentPage": "Page 1"
+}
+```
+
+**Example:**
+```javascript
+open_file({ path: "/Users/you/project/design.fig" })
+```
+
+### `save_file`
+
+Save the current document to a `.fig` file.
+
+**Parameters:**
+- `path` (string, required) — Absolute path to save the `.fig` file
+
+**Returns:**
+```json
+{
+  "saved": "/path/to/file.fig",
+  "bytes": 43251
+}
+```
+
+### `new_document`
+
+Create a new empty document with a blank page.
+
+**Parameters:** (none)
+
+**Returns:**
+```json
+{
+  "page": "Page 1",
+  "id": "0:1"
+}
+```
+
+## Read Tools
+
+### `get_selection`
+
+Get details about currently selected nodes.
+
+**Parameters:** (none)
+
+**Returns:**
+```json
+{
+  "selection": [
+    { "id": "1:5", "name": "Rectangle", "type": "RECTANGLE", "x": 100, "y": 200, ... }
+  ]
+}
+```
+
+### `get_page_tree`
+
+Get the node tree of the current page. Returns all nodes with hierarchy, types, positions, and sizes.
+
+**Parameters:** (none)
+
+**Returns:**
+```json
+{
+  "page": "Page 1",
+  "children": [
+    { "id": "1:2", "name": "Frame", "type": "FRAME", "children": [...] }
+  ]
+}
+```
+
+### `get_node`
+
+Get detailed properties of a node by ID.
+
+**Parameters:**
+- `id` (string, required) — Node ID
+
+**Returns:**
+```json
+{
+  "id": "1:5",
+  "name": "My Rectangle",
+  "type": "RECTANGLE",
+  "x": 100,
+  "y": 200,
+  "width": 300,
+  "height": 200,
+  "fills": [...],
+  "strokes": [...],
+  ...
+}
+```
+
+### `find_nodes`
+
+Find nodes by name pattern and/or type.
+
+**Parameters:**
+- `name` (string, optional) — Name substring to match (case-insensitive)
+- `type` (string, optional) — Node type filter. One of: `FRAME`, `RECTANGLE`, `ELLIPSE`, `TEXT`, `LINE`, `STAR`, `POLYGON`, `SECTION`, `GROUP`, `COMPONENT`, `INSTANCE`, `VECTOR`
+
+**Returns:**
+```json
+{
+  "count": 5,
+  "nodes": [
+    { "id": "1:2", "name": "Header Frame", "type": "FRAME" },
+    { "id": "1:3", "name": "Footer Frame", "type": "FRAME" }
+  ]
+}
+```
+
+**Example:**
+```javascript
+find_nodes({ name: "button", type: "COMPONENT" })
+```
+
+## Create Tools
+
+### `create_shape`
+
+Create a shape on the canvas.
+
+**Parameters:**
+- `type` (string, required) — Node type: `FRAME`, `RECTANGLE`, `ELLIPSE`, `TEXT`, `LINE`, `STAR`, `POLYGON`, `SECTION`
+- `x` (number, required) — X position
+- `y` (number, required) — Y position
+- `width` (number, required) — Width in pixels (min: 1)
+- `height` (number, required) — Height in pixels (min: 1)
+- `name` (string, optional) — Node name shown in layers panel
+- `parent_id` (string, optional) — Parent node ID to nest inside
+
+**Returns:**
+```json
+{
+  "id": "1:5",
+  "name": "Rectangle",
+  "type": "RECTANGLE"
+}
+```
+
+**Example:**
+```javascript
+create_shape({
+  type: "FRAME",
+  x: 100,
+  y: 100,
+  width: 320,
+  height: 480,
+  name: "Card"
+})
+```
+
+### `render`
+
+Render JSX to design nodes. Primary creation tool — creates entire component trees in one call.
+
+**Parameters:**
+- `jsx` (string, required) — JSX string to render
+- `x` (number, optional) — X position of the root node
+- `y` (number, optional) — Y position of the root node
+- `parent_id` (string, optional) — Parent node ID to render into
+
+**Returns:**
+```json
+{
+  "id": "1:5",
+  "name": "Card",
+  "type": "FRAME",
+  "children": ["1:6", "1:7"]
+}
+```
+
+**Example:**
+```javascript
+render({
+  jsx: `<Frame name="Card" w={320} h="hug" flex="col" gap={16} p={24} bg="#FFF" rounded={16}>
+    <Text size={18} weight="bold">Title</Text>
+    <Text size={14} color="#666">Description text</Text>
+    <Frame flex="row" gap={8}>
+      <Rectangle w={24} h={24} fill="#3b82f6" rounded={4} />
+      <Text size={14}>Action</Text>
+    </Frame>
+  </Frame>`,
+  x: 100,
+  y: 100
+})
+```
+
+### `create_page`
+
+Create a new page.
+
+**Parameters:**
+- `name` (string, required) — Page name
+
+**Returns:**
+```json
+{
+  "id": "0:3",
+  "name": "New Page"
+}
+```
+
+### `create_vector`
+
+Create a vector node with optional path data.
+
+**Parameters:**
+- `x` (number, required) — X position
+- `y` (number, required) — Y position
+- `name` (string, optional) — Node name
+- `path` (string, optional) — VectorNetwork JSON
+- `fill` (color, optional) — Fill color (hex)
+- `stroke` (color, optional) — Stroke color (hex)
+- `stroke_weight` (number, optional) — Stroke weight
+- `parent_id` (string, optional) — Parent node ID
+
+**Returns:**
+```json
+{
+  "id": "1:8",
+  "name": "Vector",
+  "type": "VECTOR"
+}
+```
+
+## Modify Tools
+
+### `set_fill`
+
+Set the fill color of a node.
+
+**Parameters:**
+- `id` (string, required) — Node ID
+- `color` (color, required) — Color value (hex like `#ff0000`)
+
+**Returns:**
+```json
+{
+  "id": "1:5",
+  "color": { "r": 1, "g": 0, "b": 0 }
+}
+```
+
+**Example:**
+```javascript
+set_fill({ id: "1:5", color: "#3b82f6" })
+```
+
+### `set_stroke`
+
+Set the stroke (border) of a node.
+
+**Parameters:**
+- `id` (string, required) — Node ID
+- `color` (color, required) — Stroke color (hex)
+- `weight` (number, optional, default: 1) — Stroke weight (min: 0.1)
+- `align` (string, optional, default: "INSIDE") — Stroke alignment: `INSIDE`, `CENTER`, `OUTSIDE`
+
+**Returns:**
+```json
+{
+  "id": "1:5",
+  "color": { "r": 0, "g": 0, "b": 0 },
+  "weight": 2
+}
+```
+
+### `set_effects`
+
+Set effects on a node (drop shadow, inner shadow, blur).
+
+**Parameters:**
+- `id` (string, required) — Node ID
+- `type` (string, required) — Effect type: `DROP_SHADOW`, `INNER_SHADOW`, `FOREGROUND_BLUR`, `BACKGROUND_BLUR`
+- `color` (color, optional) — Shadow color (hex). Ignored for blur.
+- `offset_x` (number, optional, default: 0) — Shadow X offset
+- `offset_y` (number, optional, default: 4) — Shadow Y offset
+- `radius` (number, optional, default: 4) — Blur radius (min: 0)
+- `spread` (number, optional, default: 0) — Shadow spread
+
+**Returns:**
+```json
+{
+  "id": "1:5",
+  "effects": 1
+}
+```
+
+**Example:**
+```javascript
+set_effects({
+  id: "1:5",
+  type: "DROP_SHADOW",
+  color: "#00000026",
+  offset_x: 0,
+  offset_y: 4,
+  radius: 8,
+  spread: 0
+})
+```
+
+### `update_node`
+
+Update properties of an existing node: position, size, opacity, corner radius, visibility, text, font.
+
+**Parameters:**
+- `id` (string, required) — Node ID
+- `x` (number, optional) — X position
+- `y` (number, optional) — Y position
+- `width` (number, optional) — Width (min: 1)
+- `height` (number, optional) — Height (min: 1)
+- `opacity` (number, optional) — Opacity (0-1)
+- `corner_radius` (number, optional) — Corner radius (min: 0)
+- `visible` (boolean, optional) — Visibility
+- `text` (string, optional) — Text content (TEXT nodes)
+- `font_size` (number, optional) — Font size (min: 1)
+- `font_weight` (number, optional) — Font weight (100-900)
+- `name` (string, optional) — Layer name
+
+**Returns:**
+```json
+{
+  "id": "1:5",
+  "updated": ["x", "y", "opacity"]
+}
+```
+
+### `set_layout`
+
+Set auto-layout (flexbox) on a frame.
+
+**Parameters:**
+- `id` (string, required) — Frame node ID
+- `direction` (string, required) — Layout direction: `HORIZONTAL`, `VERTICAL`
+- `spacing` (number, optional, default: 0) — Gap between items (min: 0)
+- `padding` (number, optional) — Equal padding on all sides (min: 0)
+- `padding_horizontal` (number, optional) — Horizontal padding (min: 0)
+- `padding_vertical` (number, optional) — Vertical padding (min: 0)
+- `align` (string, optional, default: "MIN") — Primary axis alignment: `MIN`, `CENTER`, `MAX`, `SPACE_BETWEEN`
+- `counter_align` (string, optional, default: "MIN") — Cross axis alignment: `MIN`, `CENTER`, `MAX`, `STRETCH`
+
+**Returns:**
+```json
+{
+  "id": "1:5",
+  "direction": "VERTICAL",
+  "spacing": 16
+}
+```
+
+**Example:**
+```javascript
+set_layout({
+  id: "1:5",
+  direction: "VERTICAL",
+  spacing: 16,
+  padding: 24,
+  align: "MIN",
+  counter_align: "STRETCH"
+})
+```
+
+### `set_constraints`
+
+Set resize constraints for a node within its parent.
+
+**Parameters:**
+- `id` (string, required) — Node ID
+- `horizontal` (string, optional) — Horizontal constraint: `MIN`, `CENTER`, `MAX`, `STRETCH`, `SCALE`
+- `vertical` (string, optional) — Vertical constraint: `MIN`, `CENTER`, `MAX`, `STRETCH`, `SCALE`
+
+**Returns:**
+```json
+{
+  "id": "1:5",
+  "constraints": {
+    "horizontal": "STRETCH",
+    "vertical": "MIN"
+  }
+}
+```
+
+## Structure Tools
+
+### `delete_node`
+
+Delete a node by ID.
+
+**Parameters:**
+- `id` (string, required) — Node ID to delete
+
+**Returns:**
+```json
+{
+  "deleted": "1:5"
+}
+```
+
+### `clone_node`
+
+Clone (duplicate) a node.
+
+**Parameters:**
+- `id` (string, required) — Node ID to clone
+
+**Returns:**
+```json
+{
+  "id": "1:6",
+  "name": "Rectangle copy",
+  "type": "RECTANGLE"
+}
+```
+
+### `rename_node`
+
+Rename a node in the layers panel.
+
+**Parameters:**
+- `id` (string, required) — Node ID
+- `name` (string, required) — New name
+
+**Returns:**
+```json
+{
+  "id": "1:5",
+  "name": "New Name"
+}
+```
+
+### `reparent_node`
+
+Move a node into a different parent.
+
+**Parameters:**
+- `id` (string, required) — Node ID to move
+- `parent_id` (string, required) — New parent node ID
+
+**Returns:**
+```json
+{
+  "id": "1:5",
+  "parent_id": "1:2"
+}
+```
+
+### `select_nodes`
+
+Select one or more nodes by ID.
+
+**Parameters:**
+- `ids` (string[], required) — Node IDs to select
+
+**Returns:**
+```json
+{
+  "selected": ["1:5", "1:6"]
+}
+```
+
+### `group_nodes`
+
+Group selected nodes.
+
+**Parameters:**
+- `ids` (string[], required) — Node IDs to group
+
+**Returns:**
+```json
+{
+  "id": "1:7",
+  "name": "Group",
+  "type": "GROUP"
+}
+```
+
+### `ungroup_node`
+
+Ungroup a group node.
+
+**Parameters:**
+- `id` (string, required) — Group node ID
+
+**Returns:**
+```json
+{
+  "ungrouped": "1:7"
+}
+```
+
+## Component Tools
+
+### `create_component`
+
+Convert a frame/group into a component.
+
+**Parameters:**
+- `id` (string, required) — Node ID to convert
+
+**Returns:**
+```json
+{
+  "id": "1:8",
+  "name": "Button",
+  "type": "COMPONENT"
+}
+```
+
+### `create_instance`
+
+Create an instance of a component.
+
+**Parameters:**
+- `component_id` (string, required) — Component node ID
+- `x` (number, optional) — X position
+- `y` (number, optional) — Y position
+
+**Returns:**
+```json
+{
+  "id": "1:9",
+  "name": "Button",
+  "type": "INSTANCE"
+}
+```
+
+## Page Tools
+
+### `list_pages`
+
+List all pages in the document.
+
+**Parameters:** (none)
+
+**Returns:**
+```json
+{
+  "current": "Page 1",
+  "pages": [
+    { "id": "0:1", "name": "Page 1" },
+    { "id": "0:2", "name": "Components" }
+  ]
+}
+```
+
+### `switch_page`
+
+Switch to a different page by name or ID.
+
+**Parameters:**
+- `page` (string, required) — Page name or ID
+
+**Returns:**
+```json
+{
+  "page": "Components",
+  "id": "0:2"
+}
+```
+
+## Variable Tools
+
+### `list_variables`
+
+List all design variables (colors, numbers, strings, booleans).
+
+**Parameters:**
+- `type` (string, optional) — Filter by variable type: `COLOR`, `FLOAT`, `STRING`, `BOOLEAN`
+
+**Returns:**
+```json
+{
+  "count": 3,
+  "variables": [
+    { "id": "v:1", "name": "primary", "type": "COLOR", ... }
+  ]
+}
+```
+
+### `list_collections`
+
+List all variable collections.
+
+**Parameters:** (none)
+
+**Returns:**
+```json
+{
+  "count": 2,
+  "collections": [
+    { "id": "c:1", "name": "Colors", ... }
+  ]
+}
+```
+
+### `create_variable`
+
+Create a new variable in a collection.
+
+**Parameters:**
+- `name` (string, required) — Variable name
+- `type` (string, required) — Variable type: `COLOR`, `FLOAT`, `STRING`, `BOOLEAN`
+- `collection_id` (string, required) — Collection ID
+- `value` (string, optional) — Initial value (hex for COLOR, number for FLOAT, etc.)
+
+**Returns:**
+```json
+{
+  "id": "v:2",
+  "name": "accent",
+  "type": "COLOR"
+}
+```
+
+### `set_variable`
+
+Set the value of a variable for a specific mode.
+
+**Parameters:**
+- `id` (string, required) — Variable ID
+- `mode` (string, required) — Mode ID
+- `value` (string, required) — Value (hex for COLOR, number for FLOAT, etc.)
+
+**Returns:**
+```json
+{
+  "id": "v:1",
+  "mode": "m:1",
+  "value": { "r": 0.23, "g": 0.51, "b": 0.96 }
+}
+```
+
+### `bind_variable`
+
+Bind a variable to a node property.
+
+**Parameters:**
+- `node_id` (string, required) — Node ID
+- `field` (string, required) — Property field (fills, strokes, opacity, width, height, etc.)
+- `variable_id` (string, required) — Variable ID
+
+**Returns:**
+```json
+{
+  "node_id": "1:5",
+  "field": "fills",
+  "variable_id": "v:1"
+}
+```
+
+## Boolean Operations
+
+### `boolean_union`
+
+Union (combine) multiple nodes.
+
+**Parameters:**
+- `ids` (string[], required) — Node IDs to union
+
+**Returns:**
+```json
+{
+  "id": "1:10",
+  "name": "Union",
+  "type": "BOOLEAN_OPERATION"
+}
+```
+
+### `boolean_subtract`
+
+Subtract the second node from the first.
+
+**Parameters:**
+- `ids` (string[], required) — Node IDs (first minus rest)
+
+### `boolean_intersect`
+
+Intersect multiple nodes.
+
+**Parameters:**
+- `ids` (string[], required) — Node IDs to intersect
+
+### `boolean_exclude`
+
+Exclude (XOR) multiple nodes.
+
+**Parameters:**
+- `ids` (string[], required) — Node IDs to exclude
+
+## Vector Path Tools
+
+### `path_get`
+
+Get vector path data of a node.
+
+**Parameters:**
+- `id` (string, required) — Node ID
+
+**Returns:**
+```json
+{
+  "id": "1:5",
+  "vectorNetwork": {
+    "vertices": [...],
+    "segments": [...],
+    "regions": [...]
+  }
+}
+```
+
+### `path_set`
+
+Set vector path data on a node.
+
+**Parameters:**
+- `id` (string, required) — Node ID
+- `path` (string, required) — VectorNetwork JSON
+
+**Returns:**
+```json
+{
+  "id": "1:5"
+}
+```
+
+### `path_scale`
+
+Scale vector path from center.
+
+**Parameters:**
+- `id` (string, required) — Node ID
+- `factor` (number, required) — Scale factor (e.g. 2 for double)
+
+**Returns:**
+```json
+{
+  "id": "1:5",
+  "factor": 2
+}
+```
+
+### `path_flip`
+
+Flip vector path horizontally or vertically.
+
+**Parameters:**
+- `id` (string, required) — Node ID
+- `axis` (string, required) — Flip axis: `horizontal`, `vertical`
+
+### `path_move`
+
+Move all path points by an offset.
+
+**Parameters:**
+- `id` (string, required) — Node ID
+- `dx` (number, required) — X offset
+- `dy` (number, required) — Y offset
+
+## Viewport Tools
+
+### `viewport_get`
+
+Get current viewport position and zoom level.
+
+**Parameters:** (none)
+
+**Returns:**
+```json
+{
+  "center": { "x": 500, "y": 400 },
+  "zoom": 1
+}
+```
+
+### `viewport_set`
+
+Set viewport position and zoom.
+
+**Parameters:**
+- `x` (number, required) — Center X
+- `y` (number, required) — Center Y
+- `zoom` (number, required) — Zoom level (min: 0.01)
+
+**Returns:**
+```json
+{
+  "x": 500,
+  "y": 400,
+  "zoom": 1.5
+}
+```
+
+### `viewport_zoom_to_fit`
+
+Zoom viewport to fit specified nodes.
+
+**Parameters:**
+- `ids` (string[], required) — Node IDs to fit in view
+
+**Returns:**
+```json
+{
+  "center": { "x": 500, "y": 400 },
+  "bounds": { "x": 100, "y": 100, "width": 800, "height": 600 }
+}
+```
+
+## Text Tools
+
+### `set_text`
+
+Set text content of a text node.
+
+**Parameters:**
+- `id` (string, required) — Node ID
+- `text` (string, required) — Text content
+
+**Returns:**
+```json
+{
+  "id": "1:5",
+  "text": "Hello, world!"
+}
+```
+
+### `set_font`
+
+Set font properties of a text node.
+
+**Parameters:**
+- `id` (string, required) — Node ID
+- `family` (string, optional) — Font family name
+- `size` (number, optional) — Font size (min: 1)
+- `style` (string, optional) — Font style (e.g. "Bold", "Regular", "Bold Italic")
+
+**Returns:**
+```json
+{
+  "id": "1:5",
+  "fontName": { "family": "Inter", "style": "Bold" },
+  "fontSize": 18
+}
+```
+
+### `set_text_properties`
+
+Set text layout properties: alignment, auto-resize, decoration.
+
+**Parameters:**
+- `id` (string, required) — Text node ID
+- `align_horizontal` (string, optional) — Horizontal text alignment: `LEFT`, `CENTER`, `RIGHT`, `JUSTIFIED`
+- `align_vertical` (string, optional) — Vertical text alignment: `TOP`, `CENTER`, `BOTTOM`
+- `auto_resize` (string, optional) — Text auto-resize mode: `NONE`, `WIDTH_AND_HEIGHT`, `HEIGHT`, `TRUNCATE`
+- `text_decoration` (string, optional) — Text decoration: `NONE`, `UNDERLINE`, `STRIKETHROUGH`
+
+**Returns:**
+```json
+{
+  "id": "1:5",
+  "updated": ["textAlignHorizontal", "textAutoResize"]
+}
+```
+
+## Granular Tools
+
+### `set_rotation`
+
+Set rotation angle of a node in degrees.
+
+**Parameters:**
+- `id` (string, required) — Node ID
+- `angle` (number, required) — Rotation angle in degrees
+
+### `set_opacity`
+
+Set opacity of a node.
+
+**Parameters:**
+- `id` (string, required) — Node ID
+- `value` (number, required) — Opacity (0-1)
+
+### `set_radius`
+
+Set corner radius.
+
+**Parameters:**
+- `id` (string, required) — Node ID
+- `radius` (number, optional) — Corner radius for all corners (min: 0)
+- `top_left` (number, optional) — Top-left radius (min: 0)
+- `top_right` (number, optional) — Top-right radius (min: 0)
+- `bottom_right` (number, optional) — Bottom-right radius (min: 0)
+- `bottom_left` (number, optional) — Bottom-left radius (min: 0)
+
+### `set_visible`
+
+Set visibility of a node.
+
+**Parameters:**
+- `id` (string, required) — Node ID
+- `value` (boolean, required) — Visible (true/false)
+
+### `set_blend`
+
+Set blend mode of a node.
+
+**Parameters:**
+- `id` (string, required) — Node ID
+- `mode` (string, required) — Blend mode: `NORMAL`, `DARKEN`, `MULTIPLY`, `COLOR_BURN`, `LIGHTEN`, `SCREEN`, `COLOR_DODGE`, `OVERLAY`, `SOFT_LIGHT`, `HARD_LIGHT`, `DIFFERENCE`, `EXCLUSION`, `HUE`, `SATURATION`, `COLOR`, `LUMINOSITY`
+
+### `set_locked`
+
+Set locked state of a node.
+
+**Parameters:**
+- `id` (string, required) — Node ID
+- `value` (boolean, required) — Locked (true/false)
+
+## Advanced Tools
+
+### `eval`
+
+Execute JavaScript with full Figma Plugin API access. Use for operations not covered by other tools.
+
+**Parameters:**
+- `code` (string, required) — JavaScript code to execute
+
+**Returns:** (depends on code execution)
+
+**Example:**
+```javascript
+eval({
+  code: `
+    const rect = figma.createRectangle()
+    rect.resize(100, 100)
+    rect.fills = [{ type: 'SOLID', color: { r: 1, g: 0, b: 0 } }]
+    return { id: rect.id, name: rect.name }
+  `
+})
+```
+
+**Security:** Disabled in HTTP transport. Enabled in stdio transport.
+
+### `node_tree`
+
+Get a node tree with types and hierarchy.
+
+**Parameters:**
+- `id` (string, required) — Node ID
+- `depth` (number, optional) — Max depth (default: unlimited)
+
+**Returns:**
+```json
+{
+  "id": "1:2",
+  "name": "Frame",
+  "type": "FRAME",
+  "children": [
+    { "id": "1:3", "name": "Text", "type": "TEXT" }
+  ]
+}
+```
+
+### `node_replace_with`
+
+Replace a node with JSX content.
+
+**Parameters:**
+- `id` (string, required) — Node ID to replace
+- `jsx` (string, required) — JSX string for the replacement
+
+**Returns:**
+```json
+{
+  "id": "1:10",
+  "name": "New Node",
+  "type": "FRAME"
+}
+```
+
+## Full Tool List
+
+All 75+ tools:
+
+- `open_file`, `save_file`, `new_document`
+- `get_selection`, `get_page_tree`, `get_node`, `find_nodes`
+- `create_shape`, `render`, `create_page`, `create_vector`, `create_slice`
+- `set_fill`, `set_stroke`, `set_effects`, `update_node`, `set_layout`, `set_constraints`
+- `delete_node`, `clone_node`, `rename_node`, `reparent_node`, `select_nodes`, `group_nodes`, `ungroup_node`
+- `create_component`, `create_instance`
+- `list_pages`, `switch_page`
+- `list_variables`, `list_collections`, `create_variable`, `set_variable`, `delete_variable`, `bind_variable`
+- `get_collection`, `create_collection`, `delete_collection`
+- `boolean_union`, `boolean_subtract`, `boolean_intersect`, `boolean_exclude`
+- `path_get`, `path_set`, `path_scale`, `path_flip`, `path_move`
+- `viewport_get`, `viewport_set`, `viewport_zoom_to_fit`, `page_bounds`
+- `set_text`, `set_font`, `set_font_range`, `set_text_resize`, `set_text_properties`
+- `set_rotation`, `set_opacity`, `set_radius`, `set_minmax`, `set_visible`, `set_blend`, `set_locked`, `set_stroke_align`
+- `node_bounds`, `node_move`, `node_resize`, `node_ancestors`, `node_children`, `node_tree`, `node_bindings`, `node_replace_with`
+- `flatten_nodes`, `list_fonts`, `set_layout_child`
+- `eval`, `get_variable`, `find_variables`
+
+See the [source code](https://github.com/open-pencil/open-pencil/blob/master/packages/core/src/tools/schema.ts) for implementation details.

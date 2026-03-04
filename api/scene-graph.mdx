@@ -1,0 +1,508 @@
+---
+title: SceneGraph API
+description: Scene graph data structure and node tree operations
+---
+
+# SceneGraph API
+
+Central data structure for the document tree. Nodes stored in a flat `Map<string, SceneNode>` with parent-child relationships.
+
+## Import
+
+```typescript
+import { SceneGraph, generateId } from '@open-pencil/core'
+import type { SceneNode, NodeType } from '@open-pencil/core'
+```
+
+## Constructor
+
+```typescript
+const graph = new SceneGraph()
+```
+
+Creates a new scene graph with a root `FRAME` node (id `0:1`) and a default page (`CANVAS` node).
+
+## Properties
+
+### `nodes`
+
+```typescript
+nodes: Map<string, SceneNode>
+```
+
+Flat storage of all nodes. Use `getNode(id)` instead of direct access.
+
+### `images`
+
+```typescript
+images: Map<string, Uint8Array>
+```
+
+Image hash → raw bytes. Used by `IMAGE` fills.
+
+### `variables`
+
+```typescript
+variables: Map<string, Variable>
+```
+
+Design variables (colors, numbers, strings, booleans).
+
+### `variableCollections`
+
+```typescript
+variableCollections: Map<string, VariableCollection>
+```
+
+Variable collections with modes.
+
+### `rootId`
+
+```typescript
+rootId: string
+```
+
+ID of the root document node (always `0:1`).
+
+## Node Management
+
+### `createNode()`
+
+```typescript
+createNode(
+  type: NodeType,
+  parentId: string,
+  overrides?: Partial<SceneNode>
+): SceneNode
+```
+
+Creates a new node and adds it to the parent's children.
+
+```typescript
+const rect = graph.createNode('RECTANGLE', pageId, {
+  x: 50,
+  y: 50,
+  width: 100,
+  height: 100,
+  fills: [{ type: 'SOLID', color: { r: 1, g: 0, b: 0 }, opacity: 1, visible: true }]
+})
+```
+
+### `getNode()`
+
+```typescript
+getNode(id: string): SceneNode | undefined
+```
+
+Returns node by ID.
+
+### `updateNode()`
+
+```typescript
+updateNode(id: string, changes: Partial<SceneNode>): void
+```
+
+Updates node properties and clears absolute position cache.
+
+```typescript
+graph.updateNode(rect.id, {
+  width: 200,
+  fills: [{ type: 'SOLID', color: { r: 0, g: 1, b: 0 }, opacity: 1, visible: true }]
+})
+```
+
+### `deleteNode()`
+
+```typescript
+deleteNode(id: string): void
+```
+
+Deletes node and all descendants. Cannot delete root.
+
+### `getAllNodes()`
+
+```typescript
+getAllNodes(): Iterable<SceneNode>
+```
+
+Returns all nodes in the graph.
+
+## Tree Operations
+
+### `getChildren()`
+
+```typescript
+getChildren(id: string): SceneNode[]
+```
+
+Returns direct children of a node.
+
+### `reparentNode()`
+
+```typescript
+reparentNode(nodeId: string, newParentId: string): void
+```
+
+Moves node to a new parent, preserving absolute position. Prevents circular references.
+
+```typescript
+graph.reparentNode(rect.id, frameId)
+```
+
+### `reorderChild()`
+
+```typescript
+reorderChild(nodeId: string, parentId: string, insertIndex: number): void
+```
+
+Moves node to a specific index in parent's children array (z-order).
+
+### `cloneTree()`
+
+```typescript
+cloneTree(
+  sourceId: string,
+  parentId: string,
+  overrides?: Partial<SceneNode>
+): SceneNode | null
+```
+
+Recursively clones a node and all descendants.
+
+```typescript
+const copy = graph.cloneTree(rect.id, pageId, { x: 200 })
+```
+
+### `isDescendant()`
+
+```typescript
+isDescendant(childId: string, ancestorId: string): boolean
+```
+
+Checks if a node is a descendant of another.
+
+### `isContainer()`
+
+```typescript
+isContainer(id: string): boolean
+```
+
+Returns `true` for `CANVAS`, `FRAME`, `GROUP`, `SECTION`, `COMPONENT`, `COMPONENT_SET`, `INSTANCE`.
+
+## Geometry
+
+### `getAbsolutePosition()`
+
+```typescript
+getAbsolutePosition(id: string): { x: number; y: number }
+```
+
+Returns node position in canvas coordinates (sum of ancestor positions). Result is cached.
+
+### `getAbsoluteBounds()`
+
+```typescript
+getAbsoluteBounds(id: string): Rect
+```
+
+Returns `{ x, y, width, height }` in canvas coordinates.
+
+### `clearAbsPosCache()`
+
+```typescript
+clearAbsPosCache(): void
+```
+
+Invalidates absolute position cache. Called automatically by `updateNode()` and `reparentNode()`.
+
+## Hit Testing
+
+### `hitTest()`
+
+```typescript
+hitTest(px: number, py: number, scopeId?: string): SceneNode | null
+```
+
+Finds topmost visible node at canvas coordinates. Stops at component/instance boundaries.
+
+### `hitTestDeep()`
+
+```typescript
+hitTestDeep(px: number, py: number, scopeId?: string): SceneNode | null
+```
+
+Like `hitTest()` but recurses into components/instances (for double-click).
+
+### `hitTestFrame()`
+
+```typescript
+hitTestFrame(
+  px: number,
+  py: number,
+  excludeIds: Set<string>,
+  scopeId?: string
+): SceneNode | null
+```
+
+Finds deepest container frame at coordinates, excluding specified IDs.
+
+## Pages
+
+### `addPage()`
+
+```typescript
+addPage(name: string): SceneNode
+```
+
+Creates a new `CANVAS` node (page) under root.
+
+### `getPages()`
+
+```typescript
+getPages(includeInternal = false): SceneNode[]
+```
+
+Returns all pages. Excludes internal pages (e.g., component library) unless `includeInternal` is `true`.
+
+## Components & Instances
+
+### `createInstance()`
+
+```typescript
+createInstance(
+  componentId: string,
+  parentId: string,
+  overrides?: Partial<SceneNode>
+): SceneNode | null
+```
+
+Creates an instance of a component. Clones children with `componentId` links.
+
+```typescript
+const instance = graph.createInstance(component.id, pageId, { x: 300 })
+```
+
+### `syncInstances()`
+
+```typescript
+syncInstances(componentId: string): void
+```
+
+Propagates changes from component to all instances. Respects instance overrides.
+
+### `getInstances()`
+
+```typescript
+getInstances(componentId: string): SceneNode[]
+```
+
+Returns all instances of a component.
+
+### `getMainComponent()`
+
+```typescript
+getMainComponent(instanceId: string): SceneNode | undefined
+```
+
+Returns the component for an instance.
+
+### `detachInstance()`
+
+```typescript
+detachInstance(instanceId: string): void
+```
+
+Converts instance to a regular frame.
+
+## Variables
+
+### `createVariable()`
+
+```typescript
+createVariable(
+  name: string,
+  type: VariableType,
+  collectionId: string,
+  value?: VariableValue
+): Variable
+```
+
+Creates a design variable.
+
+```typescript
+const colorVar = graph.createVariable('Primary', 'COLOR', collectionId, {
+  r: 0.2,
+  g: 0.4,
+  b: 0.8
+})
+```
+
+### `addVariable()`
+
+```typescript
+addVariable(variable: Variable): void
+```
+
+Adds an existing variable to the graph.
+
+### `removeVariable()`
+
+```typescript
+removeVariable(id: string): void
+```
+
+Removes variable and unbinds it from all nodes.
+
+### `resolveVariable()`
+
+```typescript
+resolveVariable(
+  variableId: string,
+  modeId?: string,
+  visited?: Set<string>
+): VariableValue | undefined
+```
+
+Resolves variable value for a mode, following alias chains.
+
+### `bindVariable()`
+
+```typescript
+bindVariable(nodeId: string, field: string, variableId: string): void
+```
+
+Binds a node property to a variable.
+
+```typescript
+graph.bindVariable(rect.id, 'fills.0.color', colorVar.id)
+```
+
+### `unbindVariable()`
+
+```typescript
+unbindVariable(nodeId: string, field: string): void
+```
+
+Removes variable binding.
+
+## Variable Collections
+
+### `createCollection()`
+
+```typescript
+createCollection(name: string): VariableCollection
+```
+
+Creates a variable collection with default mode.
+
+### `addCollection()`
+
+```typescript
+addCollection(collection: VariableCollection): void
+```
+
+### `removeCollection()`
+
+```typescript
+removeCollection(id: string): void
+```
+
+Removes collection and all its variables.
+
+### `setActiveMode()`
+
+```typescript
+setActiveMode(collectionId: string, modeId: string): void
+```
+
+Sets the active mode for a collection (for variable resolution).
+
+### `getActiveModeId()`
+
+```typescript
+getActiveModeId(collectionId: string): string
+```
+
+Returns the active mode ID for a collection.
+
+## Tree Traversal
+
+### `flattenTree()`
+
+```typescript
+flattenTree(parentId?: string, depth = 0): Array<{ node: SceneNode; depth: number }>
+```
+
+Returns flattened tree for layer panel rendering.
+
+```typescript
+const flat = graph.flattenTree(pageId)
+for (const { node, depth } of flat) {
+  console.log(' '.repeat(depth * 2) + node.name)
+}
+```
+
+## Utilities
+
+### `generateId()`
+
+```typescript
+export function generateId(): string
+```
+
+Generates a unique node ID in the format `0:N` (local IDs).
+
+```typescript
+import { generateId } from '@open-pencil/core'
+const id = generateId() // "0:42"
+```
+
+## Type Definitions
+
+```typescript
+export interface SceneNode {
+  id: string
+  type: NodeType
+  name: string
+  parentId: string | null
+  childIds: string[]
+  x: number
+  y: number
+  width: number
+  height: number
+  rotation: number
+  fills: Fill[]
+  strokes: Stroke[]
+  effects: Effect[]
+  opacity: number
+  cornerRadius: number
+  visible: boolean
+  locked: boolean
+  clipsContent: boolean
+  blendMode: BlendMode
+  // Text
+  text: string
+  fontSize: number
+  fontFamily: string
+  fontWeight: number
+  italic: boolean
+  // Layout
+  layoutMode: LayoutMode
+  primaryAxisAlign: LayoutAlign
+  itemSpacing: number
+  paddingTop: number
+  // ... 40+ more properties
+}
+
+export type VariableType = 'COLOR' | 'FLOAT' | 'STRING' | 'BOOLEAN'
+
+export interface Variable {
+  id: string
+  name: string
+  type: VariableType
+  collectionId: string
+  valuesByMode: Record<string, VariableValue>
+  description: string
+  hiddenFromPublishing: boolean
+}
+```

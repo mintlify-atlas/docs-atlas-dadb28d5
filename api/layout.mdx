@@ -1,0 +1,345 @@
+---
+title: Layout API
+description: Yoga-based flexbox layout engine for auto-layout frames
+---
+
+# Layout API
+
+Flexbox layout engine using Yoga WASM. Computes auto-layout (Figma-compatible) for frames with `layoutMode !== 'NONE'`.
+
+## Import
+
+```typescript
+import { computeLayout, computeAllLayouts, setTextMeasurer } from '@open-pencil/core'
+import type { TextMeasurer } from '@open-pencil/core'
+```
+
+## Core Functions
+
+### `computeLayout()`
+
+```typescript
+computeLayout(graph: SceneGraph, frameId: string): void
+```
+
+Computes layout for a single auto-layout frame and its children. Updates `x`, `y`, `width`, `height` of children based on:
+
+- Parent's `layoutMode` (HORIZONTAL | VERTICAL)
+- Parent's `primaryAxisAlign`, `counterAxisAlign`
+- Parent's `itemSpacing`, `counterAxisSpacing`
+- Parent's `paddingTop/Right/Bottom/Left`
+- Child's `layoutGrow`, `layoutAlignSelf`
+- Child's `primaryAxisSizing`, `counterAxisSizing`
+
+```typescript
+const frame = graph.createNode('FRAME', pageId, {
+  layoutMode: 'HORIZONTAL',
+  itemSpacing: 10,
+  paddingTop: 20,
+  paddingLeft: 20
+})
+
+const child1 = graph.createNode('RECTANGLE', frame.id, {
+  width: 100,
+  height: 50,
+  primaryAxisSizing: 'FIXED',
+  counterAxisSizing: 'FIXED'
+})
+
+const child2 = graph.createNode('RECTANGLE', frame.id, {
+  width: 100,
+  height: 50,
+  layoutGrow: 1 // Fill remaining space
+})
+
+computeLayout(graph, frame.id)
+// child1.x = 20, child1.y = 20
+// child2.x = 130, child2.y = 20, child2.width = (frame.width - 250)
+```
+
+### `computeAllLayouts()`
+
+```typescript
+computeAllLayouts(graph: SceneGraph): void
+```
+
+Computes layout for all auto-layout frames in the document, bottom-up (children before parents).
+
+**Call this after:**
+- Opening a `.fig` file
+- Creating demo content
+- Importing nodes
+
+```typescript
+import { parseFigFile } from '@open-pencil/core'
+
+const figData = await readFile('design.fig')
+const { graph } = await parseFigFile(figData)
+computeAllLayouts(graph)
+```
+
+### `setTextMeasurer()`
+
+```typescript
+setTextMeasurer(measurer: TextMeasurer | null): void
+
+type TextMeasurer = (node: SceneNode) => { width: number; height: number } | null
+```
+
+Registers a function to measure text node dimensions (for `textAutoResize: 'WIDTH_AND_HEIGHT'`).
+
+Layout engine calls this for text nodes with auto-sizing enabled.
+
+```typescript
+import { setTextMeasurer } from '@open-pencil/core'
+import { measureTextNode } from './text-measurer'
+
+setTextMeasurer((node) => {
+  if (node.type !== 'TEXT') return null
+  return measureTextNode(node) // { width: 120, height: 24 }
+})
+```
+
+## Layout Properties
+
+### Frame (Container)
+
+**Layout Mode:**
+
+- `layoutMode: 'NONE' | 'HORIZONTAL' | 'VERTICAL'`
+  - `NONE`: Manual positioning (no auto-layout)
+  - `HORIZONTAL`: Children arranged left-to-right
+  - `VERTICAL`: Children arranged top-to-bottom
+
+**Alignment:**
+
+- `primaryAxisAlign: 'MIN' | 'CENTER' | 'MAX' | 'SPACE_BETWEEN'`
+  - `MIN`: Align to start (left/top)
+  - `CENTER`: Center children
+  - `MAX`: Align to end (right/bottom)
+  - `SPACE_BETWEEN`: Distribute with equal gaps
+
+- `counterAxisAlign: 'MIN' | 'CENTER' | 'MAX' | 'STRETCH' | 'BASELINE'`
+  - `STRETCH`: Children fill cross axis
+  - `BASELINE`: Text baseline alignment
+
+**Sizing:**
+
+- `primaryAxisSizing: 'FIXED' | 'HUG' | 'FILL'`
+  - `FIXED`: Fixed size
+  - `HUG`: Shrink to fit children
+  - `FILL`: Fill parent (when child of auto-layout)
+
+- `counterAxisSizing: 'FIXED' | 'HUG' | 'FILL'`
+
+**Spacing:**
+
+- `itemSpacing: number` — Gap between children (main axis)
+- `counterAxisSpacing: number` — Gap between wrapped rows/columns
+- `paddingTop/Right/Bottom/Left: number`
+
+**Wrap:**
+
+- `layoutWrap: 'NO_WRAP' | 'WRAP'`
+
+### Child
+
+**Sizing:**
+
+- `primaryAxisSizing: 'FIXED' | 'HUG' | 'FILL'`
+  - Interpreted differently based on parent's `layoutMode` and child's `layoutMode`
+
+- `counterAxisSizing: 'FIXED' | 'HUG' | 'FILL'`
+
+**Alignment:**
+
+- `layoutAlignSelf: 'AUTO' | 'STRETCH'`
+  - `STRETCH`: Override parent's `counterAxisAlign`
+
+**Positioning:**
+
+- `layoutPositioning: 'AUTO' | 'ABSOLUTE'`
+  - `AUTO`: Participate in layout
+  - `ABSOLUTE`: Excluded from layout (manual positioning)
+
+**Grow:**
+
+- `layoutGrow: number` (default: 0)
+  - `0`: Use intrinsic size
+  - `> 0`: Grow to fill available space (proportional to other grow children)
+
+## Sizing Modes
+
+### Horizontal Layout
+
+| Child sizing | Width | Height |
+|--------------|-------|--------|
+| `primaryAxisSizing: FIXED` | Fixed | `counterAxisSizing` |
+| `primaryAxisSizing: HUG` | Fit content | `counterAxisSizing` |
+| `primaryAxisSizing: FILL` | Grow (flex-grow: 1) | `counterAxisSizing` |
+| `layoutGrow: 1` | Grow (flex-grow: 1) | `counterAxisSizing` |
+
+### Vertical Layout
+
+| Child sizing | Width | Height |
+|--------------|-------|--------|
+| `primaryAxisSizing: FIXED` | `counterAxisSizing` | Fixed |
+| `primaryAxisSizing: HUG` | `counterAxisSizing` | Fit content |
+| `primaryAxisSizing: FILL` | `counterAxisSizing` | Grow |
+| `layoutGrow: 1` | `counterAxisSizing` | Grow |
+
+## Nested Auto-Layout
+
+Nested auto-layout frames are computed recursively:
+
+1. Build Yoga tree from SceneGraph (parent → children)
+2. Call `yogaRoot.calculateLayout()`
+3. Apply computed positions back to SceneGraph
+4. Free Yoga nodes
+
+```typescript
+const outer = graph.createNode('FRAME', pageId, {
+  layoutMode: 'VERTICAL',
+  itemSpacing: 20,
+  primaryAxisSizing: 'HUG',
+  counterAxisSizing: 'HUG'
+})
+
+const inner = graph.createNode('FRAME', outer.id, {
+  layoutMode: 'HORIZONTAL',
+  itemSpacing: 10,
+  primaryAxisSizing: 'HUG',
+  counterAxisSizing: 'HUG'
+})
+
+graph.createNode('RECTANGLE', inner.id, { width: 50, height: 50 })
+graph.createNode('RECTANGLE', inner.id, { width: 50, height: 50 })
+
+computeLayout(graph, outer.id)
+// Computes inner first (HUG → width/height from children)
+// Then computes outer (HUG → width/height from inner + padding/spacing)
+```
+
+## CSS Grid Support
+
+**Blocked:** Yoga doesn't support CSS Grid yet (see [facebook/yoga#1893](https://github.com/facebook/yoga/issues/1893)).
+
+OpenPencil uses Figma's auto-layout model (flexbox-based) instead.
+
+## Examples
+
+### Horizontal Stack with Spacing
+
+```typescript
+const stack = graph.createNode('FRAME', pageId, {
+  layoutMode: 'HORIZONTAL',
+  itemSpacing: 16,
+  paddingTop: 20,
+  paddingLeft: 20,
+  paddingRight: 20,
+  paddingBottom: 20,
+  primaryAxisSizing: 'HUG',
+  counterAxisSizing: 'HUG'
+})
+
+for (let i = 0; i < 3; i++) {
+  graph.createNode('RECTANGLE', stack.id, {
+    width: 80,
+    height: 80,
+    fills: [{ type: 'SOLID', color: { r: 0.8, g: 0.2, b: 0.2 }, opacity: 1, visible: true }]
+  })
+}
+
+computeLayout(graph, stack.id)
+// stack.width = 20 + 80 + 16 + 80 + 16 + 80 + 20 = 312
+// stack.height = 20 + 80 + 20 = 120
+```
+
+### Fill Parent
+
+```typescript
+const container = graph.createNode('FRAME', pageId, {
+  width: 400,
+  height: 300,
+  layoutMode: 'VERTICAL',
+  itemSpacing: 0,
+  primaryAxisSizing: 'FIXED',
+  counterAxisSizing: 'FIXED'
+})
+
+const header = graph.createNode('FRAME', container.id, {
+  height: 60,
+  primaryAxisSizing: 'FILL', // Fill width
+  counterAxisSizing: 'FIXED', // Fixed height
+  fills: [{ type: 'SOLID', color: { r: 0.1, g: 0.1, b: 0.1 }, opacity: 1, visible: true }]
+})
+
+const content = graph.createNode('FRAME', container.id, {
+  layoutGrow: 1, // Fill remaining height
+  primaryAxisSizing: 'FILL', // Fill width
+  fills: [{ type: 'SOLID', color: { r: 0.95, g: 0.95, b: 0.95 }, opacity: 1, visible: true }]
+})
+
+computeLayout(graph, container.id)
+// header: x=0, y=0, width=400, height=60
+// content: x=0, y=60, width=400, height=240
+```
+
+### Wrap Layout
+
+```typescript
+const grid = graph.createNode('FRAME', pageId, {
+  width: 300,
+  layoutMode: 'HORIZONTAL',
+  layoutWrap: 'WRAP',
+  itemSpacing: 10,
+  counterAxisSpacing: 10,
+  paddingTop: 10,
+  paddingLeft: 10,
+  primaryAxisSizing: 'FIXED',
+  counterAxisSizing: 'HUG'
+})
+
+for (let i = 0; i < 12; i++) {
+  graph.createNode('RECTANGLE', grid.id, {
+    width: 60,
+    height: 60
+  })
+}
+
+computeLayout(graph, grid.id)
+// Items wrap to next row when exceeding 300px width
+// 4 items per row (60*4 + 10*3 = 270 < 300)
+```
+
+## Internal Implementation
+
+Layout computation flow:
+
+1. `buildYogaTree()`: Convert SceneGraph → Yoga node tree
+   - Map Figma layout props → Yoga flexbox props
+   - Recursively create Yoga nodes for auto-layout children
+   - Measure text nodes with `globalTextMeasurer`
+
+2. `yogaRoot.calculateLayout()`: Yoga computes layout
+
+3. `applyYogaLayout()`: Apply Yoga layout → SceneGraph
+   - Update `x`, `y`, `width`, `height` for all children
+   - Recurse into nested auto-layout frames
+
+4. `freeYogaTree()`: Free Yoga nodes (WASM memory management)
+
+## Debugging
+
+To inspect Yoga tree:
+
+```typescript
+import Yoga from 'yoga-layout'
+
+const yogaRoot = buildYogaTree(graph, frame)
+console.log('Yoga tree:', yogaRoot)
+yogaRoot.calculateLayout()
+console.log('Computed width:', yogaRoot.getComputedWidth())
+console.log('Computed height:', yogaRoot.getComputedHeight())
+freeYogaTree(yogaRoot)
+```

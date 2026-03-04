@@ -1,0 +1,234 @@
+---
+title: Platform Requirements
+description: Platform-specific prerequisites for building OpenPencil desktop app
+---
+
+Before building the OpenPencil desktop app, you need to install Rust, Bun, and platform-specific development tools. Follow the instructions for your operating system below.
+
+## All Platforms
+
+### Rust
+
+Install Rust using rustup:
+
+```sh
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+Or download from [rustup.rs](https://rustup.rs/).
+
+Verify installation:
+
+```sh
+rustc --version
+cargo --version
+```
+
+### Bun
+
+Install Bun (JavaScript runtime and package manager):
+
+```sh
+curl -fsSL https://bun.sh/install | bash
+```
+
+Verify installation:
+
+```sh
+bun --version
+```
+
+## macOS
+
+Install Xcode Command Line Tools:
+
+```sh
+xcode-select --install
+```
+
+This provides:
+
+- **Clang** — C/C++ compiler for Rust native dependencies
+- **macOS SDK** — System headers and frameworks
+- **Git** — Version control (if not already installed)
+
+Verify installation:
+
+```sh
+xcode-select -p
+# Should output: /Library/Developer/CommandLineTools
+```
+
+### Building Universal Binaries
+
+To build universal binaries (Intel + Apple Silicon), add both Rust targets:
+
+```sh
+rustup target add x86_64-apple-darwin
+rustup target add aarch64-apple-darwin
+```
+
+Then build with:
+
+```sh
+bun run tauri build --target universal-apple-darwin
+```
+
+## Windows
+
+### 1. Rust with MSVC Toolchain
+
+Download and run the Rust installer from [rustup.rs](https://rustup.rs/).
+
+During installation, select the **stable-msvc** toolchain. If you already have Rust installed with a different default, switch to MSVC:
+
+```sh
+rustup default stable-msvc
+```
+
+Verify:
+
+```sh
+rustc --version
+rustup show
+# Should show: default toolchain: stable-x86_64-pc-windows-msvc
+```
+
+### 2. Visual Studio Build Tools
+
+Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with the **"Desktop development with C++"** workload.
+
+This provides:
+
+- **MSVC compiler** — Required for Rust native dependencies
+- **Windows SDK** — System headers and libraries
+
+You can also install the full Visual Studio IDE (Community, Professional, or Enterprise) if you prefer.
+
+### 3. WebView2 Runtime
+
+WebView2 is pre-installed on:
+
+- Windows 10 (version 1803 and later)
+- Windows 11 (all versions)
+
+If missing, download the **WebView2 Evergreen Runtime** from [Microsoft](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
+
+Verify installation by checking for `msedgewebview2.exe` in `C:\Program Files (x86)\Microsoft\EdgeWebView\Application\`.
+
+### Building for ARM64
+
+To build for Windows ARM64, add the target:
+
+```sh
+rustup target add aarch64-pc-windows-msvc
+```
+
+Then build with:
+
+```sh
+bun run tauri build --target aarch64-pc-windows-msvc
+```
+
+## Linux
+
+The OpenPencil desktop app requires WebKit2GTK and several system libraries. Install them using your distribution's package manager.
+
+### Debian / Ubuntu
+
+Install all required dependencies:
+
+```sh
+sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file \
+  libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+```
+
+Breakdown:
+
+- **libwebkit2gtk-4.1-dev** — WebKit rendering engine (Tauri's webview)
+- **build-essential** — GCC, G++, make, and other build tools
+- **curl, wget, file** — Download and file type utilities
+- **libxdo-dev** — X11 automation library
+- **libssl-dev** — OpenSSL headers for Rust crypto crates
+- **libayatana-appindicator3-dev** — System tray support
+- **librsvg2-dev** — SVG rendering library
+
+### Fedora / RHEL / CentOS
+
+```sh
+sudo dnf install webkit2gtk4.1-devel openssl-devel curl wget file \
+  libappindicator-gtk3-devel librsvg2-devel xdotool
+```
+
+### Arch Linux
+
+```sh
+sudo pacman -S webkit2gtk-4.1 base-devel curl wget file openssl \
+  libappindicator-gtk3 librsvg xdotool
+```
+
+### Other Distributions
+
+For other Linux distributions, see the official [Tauri v2 prerequisites guide](https://v2.tauri.app/start/prerequisites/).
+
+## Verification
+
+After installing all prerequisites, verify your setup:
+
+```sh
+# Check Rust
+rustc --version
+
+# Check Bun
+bun --version
+
+# Install dependencies
+bun install
+
+# Try running the dev server
+bun run tauri dev
+```
+
+If the desktop window opens successfully, your environment is configured correctly.
+
+## Troubleshooting
+
+### macOS: "xcode-select: error: tool 'xcodebuild' requires Xcode"
+
+You installed the full Xcode app instead of Command Line Tools. Either:
+
+- Use the full Xcode (larger download, includes IDE)
+- Or uninstall Xcode and install Command Line Tools only
+
+### Windows: Rust targets wrong toolchain
+
+Ensure `stable-msvc` is the default:
+
+```sh
+rustup default stable-msvc
+rustup show
+```
+
+If you see `stable-gnu`, switch to MSVC.
+
+### Linux: Missing libraries
+
+Error messages will indicate which library is missing. Search for the package name in your distribution's package manager. For example:
+
+```
+error: failed to run custom build command for `webkit2gtk-sys`
+```
+
+Means you need `libwebkit2gtk-4.1-dev` (Debian/Ubuntu) or equivalent.
+
+### Version conflicts
+
+If you encounter build errors after updating dependencies:
+
+1. Clear build cache: `cargo clean` (in `desktop/` directory)
+2. Update Rust: `rustup update`
+3. Reinstall Node modules: `rm -rf node_modules && bun install`
+
+## CI Environment
+
+For automated builds (GitHub Actions, GitLab CI, etc.), the `build.yml` workflow installs all dependencies and builds for multiple platforms. See `.github/workflows/build.yml` for the complete CI setup.

@@ -1,0 +1,132 @@
+---
+title: tree
+description: Print the node hierarchy as a visual tree
+---
+
+Display the scene graph as a hierarchical tree with node properties, fills, and layout details.
+
+## Usage
+
+```sh
+bunx @open-pencil/cli tree <file> [options]
+```
+
+## Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `file` | Path to .fig file (required) |
+
+## Options
+
+| Option | Alias | Description |
+|--------|-------|-------------|
+| `--page` | | Page name (default: first page) |
+| `--depth` | | Max depth (default: unlimited) |
+| `--json` | | Output as JSON |
+
+## Examples
+
+### Full tree
+
+```sh
+bunx @open-pencil/cli tree design.fig
+```
+
+Output:
+
+```
+page "Homepage" [id:0:1]
+├─ frame "Header" [id:1:2]
+│  ├─ text "OpenPencil" [id:1:3]  {font: 24px Inter, fill: #000000}
+│  └─ frame "Nav" [id:1:4]  {layout: horizontal gap=16}
+│     ├─ text "Features" [id:1:5]  {font: 14px Inter}
+│     └─ text "Docs" [id:1:6]  {font: 14px Inter}
+└─ frame "Hero" [id:1:7]  {layout: vertical gap=24}
+   ├─ text "Heading" [id:1:8]  {font: 48px Inter, fill: #1a1a1a}
+   └─ rect "Button" [id:1:9]  {fill: #0066ff, radius: 8px}
+```
+
+### Specific page
+
+```sh
+bunx @open-pencil/cli tree design.fig --page Components
+```
+
+### Limit depth
+
+```sh
+bunx @open-pencil/cli tree design.fig --depth 2
+```
+
+### JSON output
+
+```sh
+bunx @open-pencil/cli tree design.fig --json
+```
+
+Output:
+
+```json
+[
+  {
+    "id": "1:2",
+    "name": "Header",
+    "type": "FRAME",
+    "x": 0,
+    "y": 0,
+    "width": 1440,
+    "height": 80,
+    "children": [
+      {
+        "id": "1:3",
+        "name": "OpenPencil",
+        "type": "TEXT",
+        "x": 24,
+        "y": 28,
+        "width": 180,
+        "height": 24
+      }
+    ]
+  }
+]
+```
+
+## Node Details
+
+The tree shows relevant properties for each node:
+
+- **Fill** — solid color (hex) and opacity if < 100%
+- **Stroke** — stroke color and weight
+- **Radius** — corner radius for rounded shapes
+- **Font** — font size and family for text nodes
+- **Layout** — auto-layout mode (horizontal/vertical), gap, wrap
+- **Effects** — shadows, blurs (with radius)
+- **Rotation** — rotation in degrees
+- **Opacity** — opacity if < 100%
+- **Blend** — blend mode if not normal/pass-through
+- **Overflow** — "hidden" if `clipsContent` is true
+- **Visible** — false if hidden
+- **Locked** — true if locked
+- **Component ID** — for instances, shows linked component
+
+## Format
+
+Each node is formatted as:
+
+```
+<type> "<name>" [id:<id>]  {<properties>}
+```
+
+- **Type** — lowercase, human-friendly (e.g., "frame" not "FRAME")
+- **Name** — node name in quotes
+- **ID** — Figma node ID (e.g., "1:2")
+- **Properties** — key-value pairs in curly braces
+
+## Use Cases
+
+- Explore unfamiliar .fig files
+- Debug layout issues (check gap/padding values)
+- Verify component instance links
+- Export structure for documentation
+- Generate file manifests for CI

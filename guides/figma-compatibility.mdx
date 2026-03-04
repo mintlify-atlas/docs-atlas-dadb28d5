@@ -1,0 +1,148 @@
+---
+title: Figma Compatibility
+description: Import Figma files, copy/paste between apps, and understand compatibility features
+---
+
+## Overview
+
+OpenPencil is designed to be Figma-compatible, allowing you to work seamlessly with native Figma files and transfer content between applications.
+
+## .fig File Support
+
+OpenPencil can open and save native Figma `.fig` files using the same Kiwi binary format.
+
+### What's Supported
+
+- **Full import/export** — Read and write native Figma files
+- **All node types** — Frames, shapes, text, components, instances, sections, groups
+- **Design properties** — Fills, strokes, effects, transforms, constraints
+- **Auto-layout** — Flexbox layouts with gap, padding, alignment
+- **Components** — Main components, instances, overrides, variants
+- **Variables** — Design tokens with modes and collections
+- **Text styling** — Rich text with mixed styles, fonts, line heights
+- **Vector paths** — Pen tool paths with vector networks
+- **Effects** — Shadows, blurs, blend modes
+
+### File Format Details
+
+Figma files use the Kiwi binary codec with Zstd compression:
+
+```
+.fig file structure:
+- Magic header: "fig-kiwi" (8 bytes)
+- Version (4 bytes)
+- Compressed Kiwi schema
+- Compressed message data (NodeChange[])
+- Blob data (images, vector networks)
+```
+
+## Copy & Paste Between Apps
+
+OpenPencil supports clipboard interoperability with Figma:
+
+- **From Figma to OpenPencil** — Select nodes in Figma, copy (Cmd+C), paste in OpenPencil (Cmd+V)
+- **From OpenPencil to Figma** — Select nodes in OpenPencil, copy, paste in Figma
+
+The clipboard uses the same Kiwi binary format as `.fig` files, ensuring perfect fidelity.
+
+### What Transfers
+
+- Node structure and hierarchy
+- All visual properties (fills, strokes, effects)
+- Layout and constraints
+- Text content and styling
+- Component instances (references preserved where possible)
+
+## Rendering Compatibility
+
+Both OpenPencil and Figma use Skia (CanvasKit WASM) for rendering, providing:
+
+- **Identical rendering primitives** — Same graphics engine
+- **Text shaping** — Same font rendering with Skia's text engine
+- **Effects** — Shadows, blurs, and blend modes work identically
+- **Vector paths** — Precise path rendering
+
+### Known Differences
+
+- **Corner smoothing** — Figma's squircle implementation may have minor differences
+- **Subpixel rendering** — Minor rounding differences at fractional coordinates
+- **Font availability** — Results depend on fonts available on your system
+
+## Current Limitations
+
+While we aim for 100% compatibility, some features are still in development:
+
+- **Shader effects (SkSL)** — Planned
+- **Skewing** — Planned
+- **OkHCL color support** — Planned
+- **Advanced prototyping** — Basic prototype data is preserved but not fully interactive
+
+## Importing Figma Files
+
+### Via Desktop App
+
+1. Click File → Open (or Cmd+O)
+2. Select a `.fig` file
+3. The file opens in a new document
+
+### Via CLI
+
+```bash
+# Inspect a .fig file
+bunx @open-pencil/cli info design.fig
+
+# View the node tree
+bunx @open-pencil/cli tree design.fig
+
+# Find specific nodes
+bunx @open-pencil/cli find design.fig --type TEXT
+
+# Export to PNG
+bunx @open-pencil/cli export design.fig
+```
+
+## Exporting to Figma Format
+
+### From the Editor
+
+1. Click File → Save As (or Cmd+Shift+S)
+2. Choose `.fig` format
+3. Select location and save
+
+### From the CLI
+
+```bash
+# Save as .fig
+bunx @open-pencil/cli export input.fig --format fig --output output.fig
+```
+
+## Testing Compatibility
+
+To verify that a file renders correctly:
+
+1. Open the `.fig` file in Figma and take a screenshot
+2. Open the same file in OpenPencil
+3. Compare the visual output
+
+Report any rendering differences as issues on [GitHub](https://github.com/open-pencil/open-pencil/issues).
+
+## Why Compatibility Matters
+
+Figma's binary format (`.fig`) is the de facto standard for design files. By supporting it natively, OpenPencil:
+
+- **Preserves your investment** — Use existing Figma files without conversion
+- **Enables migration** — Switch tools without losing work
+- **Supports collaboration** — Work with Figma users via file exchange
+- **Ensures data ownership** — Open source tools mean you control your files
+
+## Technical Details
+
+OpenPencil's Figma compatibility comes from:
+
+- **Kiwi binary codec** — 533-definition schema matching Figma's internal format
+- **NodeChange structure** — 538 fields covering all node properties
+- **Vector network encoding** — Reverse-engineered binary format for paths
+- **Skia rendering** — Same graphics engine (CanvasKit WASM)
+- **Yoga layout** — CSS Flexbox engine for auto-layout
+
+For implementation details, see the source code in `packages/core/src/kiwi/`.

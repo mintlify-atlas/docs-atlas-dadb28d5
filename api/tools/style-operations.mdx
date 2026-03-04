@@ -1,0 +1,326 @@
+---
+title: Style Operations
+description: Tools for setting fills, strokes, effects, and visual properties
+---
+
+## set_fill
+
+Set the fill color of a node. Accepts hex (#ff0000) or named color.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="color" type="color" required>
+  Color value (hex like #ff0000)
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node ID and applied color.
+</ParamField>
+
+---
+
+## set_stroke
+
+Set the stroke (border) of a node.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="color" type="color" required>
+  Stroke color (hex)
+</ParamField>
+
+<ParamField path="weight" type="number" default="1">
+  Stroke weight (minimum: 0.1)
+</ParamField>
+
+<ParamField path="align" type="string" default="INSIDE">
+  Stroke alignment. Options: `INSIDE`, `CENTER`, `OUTSIDE`
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node ID, applied color, and weight.
+</ParamField>
+
+---
+
+## set_stroke_align
+
+Set stroke alignment of a node.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="align" type="string" required>
+  Stroke alignment. Options: `INSIDE`, `CENTER`, `OUTSIDE`
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node ID and stroke alignment.
+</ParamField>
+
+---
+
+## set_effects
+
+Set effects on a node (drop shadow, inner shadow, blur). Pass an array or a single effect.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="type" type="string" required>
+  Effect type. Options: `DROP_SHADOW`, `INNER_SHADOW`, `FOREGROUND_BLUR`, `BACKGROUND_BLUR`
+</ParamField>
+
+<ParamField path="color" type="color">
+  Shadow color (hex). Ignored for blur.
+</ParamField>
+
+<ParamField path="offset_x" type="number" default="0">
+  Shadow X offset
+</ParamField>
+
+<ParamField path="offset_y" type="number" default="4">
+  Shadow Y offset
+</ParamField>
+
+<ParamField path="radius" type="number" default="4">
+  Blur radius (minimum: 0)
+</ParamField>
+
+<ParamField path="spread" type="number" default="0">
+  Shadow spread
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node ID and total number of effects.
+</ParamField>
+
+---
+
+## set_opacity
+
+Set opacity of a node (0-1).
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="value" type="number" required>
+  Opacity (0-1)
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node ID and opacity value.
+</ParamField>
+
+---
+
+## set_visible
+
+Set visibility of a node.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="value" type="boolean" required>
+  Visible (true/false)
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node ID and visibility state.
+</ParamField>
+
+---
+
+## set_blend
+
+Set blend mode of a node.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="mode" type="string" required>
+  Blend mode. Options: `NORMAL`, `DARKEN`, `MULTIPLY`, `COLOR_BURN`, `LIGHTEN`, `SCREEN`, `COLOR_DODGE`, `OVERLAY`, `SOFT_LIGHT`, `HARD_LIGHT`, `DIFFERENCE`, `EXCLUSION`, `HUE`, `SATURATION`, `COLOR`, `LUMINOSITY`
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node ID and blend mode.
+</ParamField>
+
+---
+
+## set_rotation
+
+Set rotation angle of a node in degrees.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="angle" type="number" required>
+  Rotation angle in degrees
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node ID and rotation angle.
+</ParamField>
+
+---
+
+## set_radius
+
+Set corner radius. Use individual corners for independent values.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="radius" type="number">
+  Corner radius for all corners (minimum: 0)
+</ParamField>
+
+<ParamField path="top_left" type="number">
+  Top-left radius (minimum: 0)
+</ParamField>
+
+<ParamField path="top_right" type="number">
+  Top-right radius (minimum: 0)
+</ParamField>
+
+<ParamField path="bottom_right" type="number">
+  Bottom-right radius (minimum: 0)
+</ParamField>
+
+<ParamField path="bottom_left" type="number">
+  Bottom-left radius (minimum: 0)
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node ID and corner radius.
+</ParamField>
+
+---
+
+## set_locked
+
+Set locked state of a node.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="value" type="boolean" required>
+  Locked (true/false)
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node ID and locked state.
+</ParamField>
+
+---
+
+## set_text
+
+Set text content of a text node.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="text" type="string" required>
+  Text content
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node ID and text content.
+</ParamField>
+
+---
+
+## set_font
+
+Set font properties of a text node.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="family" type="string">
+  Font family name
+</ParamField>
+
+<ParamField path="size" type="number">
+  Font size (minimum: 1)
+</ParamField>
+
+<ParamField path="style" type="string">
+  Font style (e.g. "Bold", "Regular", "Bold Italic")
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node ID, font name, and font size.
+</ParamField>
+
+---
+
+## set_font_range
+
+Set font properties for a text range.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="start" type="number" required>
+  Start character index (minimum: 0)
+</ParamField>
+
+<ParamField path="end" type="number" required>
+  End character index (minimum: 0)
+</ParamField>
+
+<ParamField path="family" type="string">
+  Font family name
+</ParamField>
+
+<ParamField path="size" type="number">
+  Font size (minimum: 1)
+</ParamField>
+
+<ParamField path="style" type="string">
+  Font style
+</ParamField>
+
+<ParamField path="color" type="color">
+  Text color (hex)
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node ID and range coordinates.
+</ParamField>
+
+---
+
+## set_text_resize
+
+Set text auto-resize mode.
+
+<ParamField path="id" type="string" required>
+  Node ID
+</ParamField>
+
+<ParamField path="mode" type="string" required>
+  Resize mode. Options: `NONE`, `WIDTH_AND_HEIGHT`, `HEIGHT`, `TRUNCATE`
+</ParamField>
+
+<ParamField path="Returns" type="object">
+  Returns the node ID and text auto-resize mode.
+</ParamField>

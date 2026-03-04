@@ -1,0 +1,305 @@
+---
+title: Contributing
+description: How to contribute to OpenPencil development
+---
+
+## Getting Started
+
+OpenPencil is open source and welcomes contributions. This guide will help you set up your development environment and understand the contribution workflow.
+
+## Setup
+
+### Prerequisites
+
+- [Bun](https://bun.sh/) — JavaScript runtime and package manager
+- [Git](https://git-scm.com/) — Version control
+- [Rust](https://rustup.rs/) — Only needed for desktop app development
+
+### Clone and Install
+
+```bash
+git clone https://github.com/open-pencil/open-pencil.git
+cd open-pencil
+bun install
+```
+
+## Development Workflow
+
+### Running the App
+
+**Web version (recommended for quick iteration):**
+
+```bash
+bun run dev
+```
+
+This starts a Vite dev server at `http://localhost:1420` with hot reload.
+
+**Desktop app:**
+
+```bash
+bun run tauri dev
+```
+
+Builds and runs the Tauri desktop app with hot reload.
+
+### Before Submitting a PR
+
+Run all quality checks to ensure your code meets project standards:
+
+```bash
+# Lint and typecheck
+bun run check
+
+# Format code
+bun run format
+
+# Check for code duplication (must be < 3%)
+bun run test:dupes
+
+# Run unit tests
+bun test tests/engine/
+
+# Run end-to-end tests
+bun run test
+```
+
+## Project Structure
+
+OpenPencil uses a monorepo structure with Bun workspaces:
+
+### Packages
+
+- **`packages/core`** — `@open-pencil/core`
+  - Scene graph, renderer, layout, codec
+  - Zero DOM dependencies, runs headless in Bun
+  - Core functionality used by all other packages
+
+- **`packages/cli`** — `@open-pencil/cli`
+  - Headless CLI for `.fig` inspection and export
+  - Uses `citty` for CLI framework and `agentfmt` for output formatting
+
+- **`packages/mcp`** — `@open-pencil/mcp`
+  - MCP server for AI coding tools
+  - Supports both stdio and HTTP transports
+  - Reuses tools from core package
+
+### Application Code
+
+- **`src/`** — Main Tauri/Vite desktop editor
+  - `src/ai/` — AI tool wiring
+  - `src/components/` — Vue components
+  - `src/composables/` — Vue composables for canvas, keyboard, collaboration
+  - `src/stores/` — Editor state management
+  - `src/engine/` — Re-export shims from `@open-pencil/core`
+
+- **`desktop/`** — Tauri v2 configuration and Rust code
+
+- **`tests/`**
+  - `tests/e2e/` — Playwright visual regression tests
+  - `tests/engine/` — Unit tests
+  - `tests/fixtures/` — Test `.fig` files (Git LFS)
+
+## Code Conventions
+
+### General Rules
+
+- **Bun runtime** — Use Bun, not Node.js
+- **TypeScript** — All code is TypeScript
+- **No `any`** — Use proper types, generics, or unknowns
+- **No `!` assertions** — Use guards, optional chaining (`?.`), or nullish coalescing (`??`)
+- **No `Math.random()`** — Use `crypto.getRandomValues()` for all randomness
+
+### Imports
+
+- **`@/` alias** — Use for app-level cross-directory imports (e.g., `@/stores/editor`)
+- **Relative imports** — Use within `packages/core` (e.g., `../../types`)
+
+### Styling
+
+- **Tailwind 4** — All styling via Tailwind classes
+- **No inline CSS** — Avoid `style` attributes
+- **No `<style>` blocks** — Don't use component-scoped styles
+
+### Icons
+
+- **unplugin-icons** — Use with Iconify/Lucide collections
+- **Component syntax** — `<icon-lucide-menu />` (not raw SVG or Unicode)
+
+### Vue
+
+- **Vue 3 Composition API** — Use `<script setup>`
+- **VueUse** — Use `@vueuse/core` hooks (e.g., `useEventListener`)
+- **Reka UI** — Use for UI components (Splitter, ContextMenu, etc.)
+
+### Constants
+
+- **`src/constants.ts`** — Define constants here, not inline magic numbers
+
+## Browser API Guards
+
+Code in `packages/core` must guard browser APIs since it runs headless in Bun:
+
+```typescript
+if (typeof window !== 'undefined') {
+  // Browser-only code
+}
+
+if (typeof document === 'undefined') {
+  // Headless-only code
+}
+```
+
+## Test Fixtures
+
+Test `.fig` files in `tests/fixtures/` use Git LFS:
+
+- **Regular push** — `git push` (slow, uploads LFS files)
+- **Skip LFS** — `git push --no-verify` (fast, skips LFS pre-push hook)
+
+**Rule:** Only use regular `git push` when you've changed `.fig` fixtures.
+
+## Documentation
+
+Update relevant docs when making changes:
+
+- **`CHANGELOG.md`** — Add user-facing changes under "Unreleased"
+- **`README.md`** — Update if feature descriptions change
+- **`AGENTS.md`** — Update if architecture or conventions change
+- **`packages/docs/`** — Update VitePress docs for major features
+
+## Commit Messages
+
+Follow the existing style in `git log`:
+
+- Keep messages concise
+- Use imperative mood ("Add feature" not "Added feature")
+- Reference issues when applicable
+
+## CLI Development
+
+### Output Formatting
+
+- **Always use `agentfmt`** — All CLI output must use formatters from `agentfmt`
+- **Available formatters** — `fmtList`, `fmtHistogram`, `fmtSummary`, `fmtTree`, `kv`, `entity`, `bold`, `dim`
+- **Don't hand-roll formatting** — Use helpers from `packages/cli/src/format.ts`
+- **JSON flag** — Every command supports `--json` for machine-readable output
+
+### Commands
+
+```bash
+bun open-pencil info <file>      # Document stats
+bun open-pencil tree <file>      # Node tree
+bun open-pencil find <file>      # Search nodes
+bun open-pencil export <file>    # Render to PNG/JPG/WEBP
+```
+
+## Tool Development
+
+Tools (AI / MCP / CLI operations) are defined once in `packages/core/src/tools/schema.ts`:
+
+1. Add a `defineTool()` in `schema.ts`
+2. Add to `ALL_TOOLS` array
+3. Tool is instantly available in:
+   - AI chat (via Vercel AI adapter)
+   - MCP server (stdio + HTTP)
+   - CLI `eval` command
+
+### Tool Structure
+
+```typescript
+const myTool = defineTool({
+  name: 'my_tool',
+  description: 'What this tool does',
+  parameters: v.object({
+    param: v.string(),
+  }),
+  execute: async (figma, args) => {
+    // Implementation
+  },
+})
+```
+
+## Rendering
+
+- **Canvas** — CanvasKit (Skia WASM) on WebGL, not DOM
+- **Versioning** — `sceneVersion` for scene mutations, `renderVersion` for repaints
+- **Render requests** — `requestRender()` bumps both, `requestRepaint()` only bumps render
+- **Culling** — Off-screen nodes are skipped, but unclipped parents aren't
+
+## Collaboration
+
+- **P2P** — Trystero (WebRTC), no server
+- **CRDT** — Yjs for document state
+- **Persistence** — y-indexeddb for local storage
+- **Composable** — `src/composables/use-collab.ts`
+
+## File Format
+
+- **`.fig` files** — Kiwi binary codec, same as Figma
+- **Schema** — `packages/core/src/kiwi/codec.ts`
+- **Vector data** — Reverse-engineered `vectorNetworkBlob` format
+- **Testing** — Round-trip by exporting and reimporting in Figma
+
+## Desktop App
+
+- **Tauri v2** — Rust backend, web frontend
+- **Plugins** — dialog, fs, opener
+- **Permissions** — Configure in `desktop/tauri.conf.json`
+
+### Platform Prerequisites
+
+**macOS:**
+```bash
+xcode-select --install
+```
+
+**Windows:**
+- Install [Rust](https://rustup.rs/)
+- Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+
+**Linux:**
+```bash
+sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file \
+  libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+```
+
+## Release Process
+
+Releases are handled by maintainers:
+
+1. Update versions in `package.json`, `packages/*/package.json`, `desktop/tauri.conf.json`
+2. Update `CHANGELOG.md`
+3. Commit: `Release v0.x.y`
+4. Tag: `git tag v0.x.y && git push --tags`
+5. CI builds binaries and publishes to npm
+
+## CI Workflows
+
+| Workflow | Trigger | Action |
+|----------|---------|--------|
+| `build.yml` | `v*` tag | Build desktop apps, publish to npm |
+| `app.yml` | Push to `master` | Deploy web app to Cloudflare Pages |
+| `docs.yml` | `packages/docs/**` | Deploy docs to Cloudflare Pages |
+
+## Getting Help
+
+- **Issues** — [GitHub Issues](https://github.com/open-pencil/open-pencil/issues)
+- **Discussions** — [GitHub Discussions](https://github.com/open-pencil/open-pencil/discussions)
+- **Documentation** — [openpencil.dev](https://openpencil.dev)
+
+## Code of Conduct
+
+Be respectful and constructive. We're building this tool together.
+
+## Reference
+
+For implementation details, see:
+
+- **AGENTS.md** — Architecture and conventions
+- **README.md** — User-facing features
+- **[figma-use](https://github.com/dannote/figma-use)** — Reference toolkit
+
+## License
+
+OpenPencil is MIT licensed. By contributing, you agree to license your contributions under the same license.

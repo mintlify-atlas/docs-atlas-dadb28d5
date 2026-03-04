@@ -1,0 +1,267 @@
+---
+title: Stdio Transport
+description: Configure Claude Code, Cursor, and Windsurf to use the OpenPencil MCP server
+---
+
+# Stdio Transport
+
+The stdio transport enables IDE integrations with MCP-compatible tools like Claude Code, Cursor, and Windsurf. The AI assistant spawns `openpencil-mcp` as a subprocess and communicates over stdin/stdout using the MCP protocol.
+
+## How It Works
+
+1. Your IDE reads the MCP configuration file (e.g. `claude_desktop_config.json`)
+2. When you start a chat, the IDE spawns `openpencil-mcp` as a subprocess
+3. The AI assistant sends tool calls via stdin, receives results via stdout
+4. The server maintains document state (opened `.fig` file) for the session lifetime
+5. When the chat ends, the subprocess terminates
+
+## Installation
+
+Install the MCP server globally:
+
+```bash
+bun add -g @open-pencil/mcp
+```
+
+Or use `bunx` in your config (no install required).
+
+## Configuration
+
+### Claude Code (Claude Desktop)
+
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+
+```json
+{
+  "mcpServers": {
+    "open-pencil": {
+      "command": "openpencil-mcp"
+    }
+  }
+}
+```
+
+If using `bunx` without global install:
+
+```json
+{
+  "mcpServers": {
+    "open-pencil": {
+      "command": "bunx",
+      "args": ["@open-pencil/mcp"]
+    }
+  }
+}
+```
+
+Restart Claude Desktop. The OpenPencil tools will appear in the tool picker.
+
+### Cursor
+
+Cursor uses the same configuration format. Edit the MCP settings file (location varies by OS):
+
+```json
+{
+  "mcpServers": {
+    "open-pencil": {
+      "command": "openpencil-mcp"
+    }
+  }
+}
+```
+
+Restart Cursor.
+
+### Windsurf
+
+Windsurf also supports MCP. Add the server to your Windsurf config:
+
+```json
+{
+  "mcpServers": {
+    "open-pencil": {
+      "command": "openpencil-mcp"
+    }
+  }
+}
+```
+
+## Usage Example
+
+Once configured, you can ask the AI assistant to perform design operations:
+
+```
+You: Open design.fig and list all pages
+
+Assistant: [calls open_file with path "design.fig"]
+           [calls list_pages]
+           
+           The file has 3 pages:
+           - Homepage (current)
+           - Components
+           - Marketing
+
+You: Create a new red rectangle at (100, 100) with size 200x150
+
+Assistant: [calls create_shape with type=RECTANGLE, x=100, y=100, width=200, height=150]
+           [calls set_fill with color="#ff0000"]
+           
+           Created a red rectangle at (100, 100) with size 200×150.
+
+You: Save the file
+
+Assistant: [calls save_file with path "design.fig"]
+           
+           Saved design.fig (42.3 KB)
+```
+
+## File Operations
+
+Before using most tools, you must open a `.fig` file or create a new document:
+
+### Open an Existing File
+
+```
+open_file({ path: "/absolute/path/to/design.fig" })
+```
+
+Returns:
+
+```json
+{
+  "pages": [
+    { "id": "1:2", "name": "Page 1" },
+    { "id": "1:3", "name": "Components" }
+  ],
+  "currentPage": "Page 1"
+}
+```
+
+### Create a New Document
+
+```
+new_document({})
+```
+
+Returns:
+
+```json
+{
+  "page": "Page 1",
+  "id": "0:1"
+}
+```
+
+### Save the Document
+
+```
+save_file({ path: "/absolute/path/to/output.fig" })
+```
+
+Returns:
+
+```json
+{
+  "saved": "/absolute/path/to/output.fig",
+  "bytes": 43251
+}
+```
+
+## Security
+
+### File Access
+
+Stdio transport **does not restrict file access**. The server inherits the file permissions of the parent process (your IDE). It can read and write any file the IDE can access.
+
+**Recommendation:** Only use stdio transport with trusted AI assistants in secure environments. For untrusted scripts or CI, use the [HTTP transport](/mcp/http-transport) with `OPENPENCIL_MCP_ROOT`.
+
+### Eval Tool
+
+The `eval` tool is **enabled by default** in stdio transport. It allows executing arbitrary JavaScript with full Figma Plugin API access:
+
+```javascript
+eval({ code: "return figma.currentPage.children.length" })
+```
+
+This is powerful but potentially dangerous. To disable it, you'd need to modify the server source (see `createServer()` in `packages/mcp/src/server.ts`).
+
+## Troubleshooting
+
+### Tools not appearing in IDE
+
+**Cause:** MCP config not loaded or invalid JSON.
+
+**Fix:**
+1. Verify the config file path matches your IDE's expected location
+2. Check JSON syntax (use `jq . < config.json` to validate)
+3. Restart the IDE completely (not just reload window)
+
+### "No document loaded" error
+
+**Cause:** Attempting to use tools before calling `open_file` or `new_document`.
+
+**Fix:** Always start with:
+
+```
+open_file({ path: "/path/to/file.fig" })
+```
+
+or
+
+```
+new_document({})
+```
+
+### "command not found: openpencil-mcp"
+
+**Cause:** Global bin directory not in PATH, or package not installed.
+
+**Fix:**
+- Ensure `bun add -g @open-pencil/mcp` succeeded
+- Add `~/.bun/bin` to PATH
+- Or use `bunx @open-pencil/mcp` in config instead
+
+### File not found errors
+
+**Cause:** Relative paths are resolved from the IDE's working directory, which may not be your project root.
+
+**Fix:** Use absolute paths:
+
+```javascript
+open_file({ path: "/Users/you/project/design.fig" })
+```
+
+Or ask the AI to resolve paths relative to the workspace root.
+
+### Server crashes or hangs
+
+**Cause:** Malformed tool parameters or bugs in the server.
+
+**Fix:**
+1. Check the IDE's MCP server logs (location varies by IDE)
+2. Test the operation manually using the [HTTP transport](/mcp/http-transport)
+3. Report issues at [github.com/open-pencil/open-pencil](https://github.com/open-pencil/open-pencil/issues)
+
+## Environment Variables
+
+You can pass environment variables via the MCP config:
+
+```json
+{
+  "mcpServers": {
+    "open-pencil": {
+      "command": "openpencil-mcp",
+      "env": {
+        "CUSTOM_VAR": "value"
+      }
+    }
+  }
+}
+```
+
+Currently, the stdio server doesn't use environment variables for configuration (unlike HTTP transport). This may change in future versions.
+
+## Next Steps
+
+- [Tools Reference](/mcp/tools-reference) — explore all 75+ available tools
+- [HTTP Transport](/mcp/http-transport) — alternative for scripts and CI

@@ -1,0 +1,127 @@
+{
+  "projectType": "saas",
+  "projectName": "OpenPencil",
+  "projectDescription": "Open-source, AI-native design editor and Figma alternative with real-time collaboration",
+  "theme": "willow",
+  "primaryColor": "#9747ff",
+  "lightColor": "#b47fff",
+  "darkColor": "#7a2fdd",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": ["introduction", "installation", "quickstart"]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/drawing-tools",
+              "features/file-format",
+              "features/collaboration",
+              "features/ai-chat",
+              "features/components"
+            ]
+          },
+          {
+            "group": "Desktop App",
+            "pages": [
+              "desktop/overview",
+              "desktop/building",
+              "desktop/platform-requirements"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/figma-compatibility",
+              "guides/keyboard-shortcuts",
+              "guides/contributing"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "CLI",
+        "groups": [
+          {
+            "group": "Command Line",
+            "pages": [
+              "cli/overview",
+              "cli/info",
+              "cli/tree",
+              "cli/find",
+              "cli/export",
+              "cli/analyze"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "MCP Server",
+        "groups": [
+          {
+            "group": "Model Context Protocol",
+            "pages": [
+              "mcp/overview",
+              "mcp/installation",
+              "mcp/stdio-transport",
+              "mcp/http-transport",
+              "mcp/tools-reference"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Core API",
+            "pages": [
+              "api/overview",
+              "api/scene-graph",
+              "api/renderer",
+              "api/layout",
+              "api/figma-api"
+            ]
+          },
+          {
+            "group": "Tools",
+            "pages": [
+              "api/tools/read-operations",
+              "api/tools/write-operations",
+              "api/tools/style-operations",
+              "api/tools/layout-operations"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Figma .fig file import/export with full compatibility",
+    "Real-time P2P collaboration via WebRTC and Yjs CRDT",
+    "AI chat with 75+ design automation tools",
+    "Headless CLI for inspection, search, and rendering",
+    "MCP server for AI coding tool integration",
+    "Desktop app (Tauri v2) and web version",
+    "Drawing tools with vector networks and auto-layout",
+    "Component system with live instance synchronization"
+  ],
+  "publicApiSurface": [
+    "@open-pencil/core - SceneGraph",
+    "@open-pencil/core - SkiaRenderer",
+    "@open-pencil/core - FigmaAPI",
+    "@open-pencil/core - ALL_TOOLS",
+    "@open-pencil/cli - info command",
+    "@open-pencil/cli - tree command",
+    "@open-pencil/cli - find command",
+    "@open-pencil/cli - export command",
+    "@open-pencil/cli - analyze command",
+    "@open-pencil/mcp - openpencil-mcp (stdio)",
+    "@open-pencil/mcp - openpencil-mcp-http",
+    "75+ MCP tools (get_selection, create_rectangle, set_fills, etc.)"
+  ]
+}
